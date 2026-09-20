@@ -1,0 +1,3722 @@
+from flask import Flask, render_template, request, jsonify, send_file
+from finance_engine import (
+    analyze_file,
+    ai_transactions_to_dataframe,
+    analyze_dataframe,
+    categorize
+)
+from ai_extractor import extract_from_image, extract_from_text
+
+from database import (
+    add_transactions,
+    get_transactions,
+    add_transaction,
+    get_transaction,
+    update_transaction,
+    delete_transaction,
+    get_budgets,
+    set_budget,
+    delete_budget,
+    get_goals,
+    add_goal,
+    get_goal,
+    update_goal,
+    delete_goal
+)
+
+import os
+import re
+from datetime import datetime, date, timedelta
+from io import BytesIO
+
+import fitz
+import pandas as pd
+from docx import Document
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle
+)
+
+
+# ============================================================
+# APP CONFIG
+# ============================================================
+
+app = Flask(__name__)
+
+UPLOAD_FOLDER = "uploads"
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+ALLOWED_EXTENSIONS = {
+    "csv",
+    "xlsx",
+    "xls",
+    "pdf",
+    "docx",
+    "png",
+    "jpg",
+    "jpeg"
+}
+
+
+# ============================================================
+# BASIC HELPERS
+# ============================================================
+
+def allowed_file(filename):
+    return (
+        "." in filename
+        and filename.rsplit(".", 1)[1].lower()
+        in ALLOWED_EXTENSIONS
+    )
+
+
+def clean_amount(value):
+    if value is None:
+        return 0.0
+
+    try:
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        value = str(value)
+
+        value = (
+            value
+            .replace("₹", "")
+            .replace("Rs.", "")
+            .replace("Rs", "")
+            .replace("INR", "")
+            .replace(",", "")
+            .strip()
+        )
+
+        if value == "":
+            return 0.0
+
+        return float(value)
+
+    except Exception:
+        return 0.0
+
+
+def transaction_amount(transaction):
+    """
+    Safely gets amount from database transaction.
+    """
+
+    if not isinstance(transaction, dict):
+        return 0.0
+
+    return clean_amount(
+        transaction.get("amount", 0)
+    )
+
+
+def get_transaction_type(transaction):
+    """
+    Supports both:
+    transaction_type
+    type
+    """
+
+    if not isinstance(transaction, dict):
+        return ""
+
+    return str(
+        transaction.get(
+            "transaction_type",
+            transaction.get("type", "")
+        )
+    ).lower().strip()
+
+
+def transaction_is_income(transaction):
+    amount = transaction_amount(transaction)
+    transaction_type = get_transaction_type(transaction)
+
+    return (
+        transaction_type == "income"
+        or (
+            transaction_type == ""
+            and amount > 0
+        )
+    )
+
+
+def transaction_is_expense(transaction):
+    amount = transaction_amount(transaction)
+    transaction_type = get_transaction_type(transaction)
+
+    return (
+        transaction_type == "expense"
+        or (
+            transaction_type == ""
+            and amount < 0
+        )
+    )
+
+
+# ============================================================
+# IMPORTANT DATABASE -> FINANCE ENGINE CONVERTER
+# ============================================================
+
+def database_transactions_to_dataframe(transactions):
+    """
+    Database uses fields such as:
+
+        date
+        description
+        amount
+        category
+        transaction_type
+
+    finance_engine expects:
+
+        Date
+        Description
+        Amount
+        Category
+
+    This function converts the database format safely.
+    """
+
+    rows = []
+
+    for transaction in transactions:
+
+        if not isinstance(transaction, dict):
+            continue
+
+        amount = transaction_amount(transaction)
+
+        transaction_type = get_transaction_type(
+            transaction
+        )
+
+        # Expense must be negative for finance_engine
+        if transaction_type == "expense":
+            amount = -abs(amount)
+
+        # Income must be positive
+        elif transaction_type == "income":
+            amount = abs(amount)
+
+        # If type is missing, infer from amount
+        elif amount < 0:
+            amount = -abs(amount)
+
+        else:
+            amount = abs(amount)
+
+        rows.append({
+            "Date": transaction.get(
+                "date",
+                ""
+            ),
+
+            "Description": transaction.get(
+                "description",
+                ""
+            ),
+
+            "Amount": amount,
+
+            "Category": transaction.get(
+                "category",
+                "Other"
+            )
+        })
+
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "Date",
+                "Description",
+                "Amount",
+                "Category"
+            ]
+        )
+
+    return pd.DataFrame(rows)
+
+
+def dataframe_to_database_rows(dataframe):
+    """
+    Converts finance_engine style DataFrame into
+    dictionaries if required.
+    """
+
+    rows = []
+
+    if dataframe is None or dataframe.empty:
+        return rows
+
+    for _, row in dataframe.iterrows():
+
+        amount = clean_amount(
+            row.get("Amount", 0)
+        )
+
+        description = str(
+            row.get(
+                "Description",
+                ""
+            )
+        )
+
+        transaction_date = str(
+            row.get(
+                "Date",
+                date.today().isoformat()
+            )
+        )
+
+        category = str(
+            row.get(
+                "Category",
+                "Other"
+            )
+        )
+
+        if amount < 0:
+
+            transaction_type = "expense"
+            db_amount = abs(amount)
+
+        else:
+
+            transaction_type = "income"
+            db_amount = abs(amount)
+
+        rows.append({
+            "date": transaction_date,
+            "description": description,
+            "amount": db_amount,
+            "category": category,
+            "transaction_type": transaction_type,
+            "source": "upload"
+        })
+
+    return rows
+
+
+# ============================================================
+# DATE HELPER
+# ============================================================
+
+def parse_date_from_text(text):
+
+    text = str(text).lower()
+
+    today = date.today()
+
+    if "today" in text:
+        return today.isoformat()
+
+    if "yesterday" in text:
+        return (
+            today - timedelta(days=1)
+        ).isoformat()
+
+    patterns = [
+        r"\b\d{4}-\d{2}-\d{2}\b",
+        r"\b\d{2}/\d{2}/\d{4}\b",
+        r"\b\d{2}-\d{2}-\d{4}\b"
+    ]
+
+    for pattern in patterns:
+
+        match = re.search(
+            pattern,
+            text
+        )
+
+        if not match:
+            continue
+
+        value = match.group(0)
+
+        try:
+
+            if "/" in value:
+
+                dt = datetime.strptime(
+                    value,
+                    "%d/%m/%Y"
+                )
+
+                return dt.date().isoformat()
+
+            if len(value) == 10 and value[4] == "-":
+
+                datetime.strptime(
+                    value,
+                    "%Y-%m-%d"
+                )
+
+                return value
+
+            dt = datetime.strptime(
+                value,
+                "%d-%m-%Y"
+            )
+
+            return dt.date().isoformat()
+
+        except Exception:
+            pass
+
+    return today.isoformat()
+
+
+# ============================================================
+# PAGE ROUTES
+# ============================================================
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html")
+
+
+@app.route("/transactions")
+def transactions_page():
+    return render_template("transactions.html")
+
+
+@app.route("/budgets")
+def budgets_page():
+    return render_template("budgets.html")
+
+
+@app.route("/dashboard/budgets")
+def dashboard_budgets_page():
+    return render_template("budgets.html")
+
+
+@app.route("/goals")
+def goals_page():
+    return render_template("goals.html")
+
+
+@app.route("/dashboard/goals")
+def dashboard_goals_page():
+    return render_template("goals.html")
+
+
+@app.route("/monthly-report")
+def monthly_report_page():
+    return render_template("monthly_report.html")
+
+
+# ============================================================
+# PDF / DOCX TEXT EXTRACTION
+# ============================================================
+
+def extract_pdf_text(filepath):
+
+    text = ""
+
+    document = fitz.open(filepath)
+
+    for page in document:
+        text += page.get_text() + "\n"
+
+    document.close()
+
+    return text
+
+
+def extract_docx_text(filepath):
+
+    document = Document(filepath)
+
+    paragraphs = []
+
+    for paragraph in document.paragraphs:
+
+        if paragraph.text.strip():
+            paragraphs.append(
+                paragraph.text
+            )
+
+    return "\n".join(paragraphs)
+
+
+# ============================================================
+# UPLOAD
+# ============================================================
+
+@app.route("/upload", methods=["POST"])
+def upload_file():
+
+    try:
+
+        if "file" not in request.files:
+
+            return jsonify({
+                "success": False,
+                "error": "No file uploaded."
+            }), 400
+
+        file = request.files["file"]
+
+        if file.filename == "":
+
+            return jsonify({
+                "success": False,
+                "error": "No file selected."
+            }), 400
+
+        if not allowed_file(file.filename):
+
+            return jsonify({
+                "success": False,
+                "error": "Unsupported file format."
+            }), 400
+
+        filename = file.filename
+
+        filepath = os.path.join(
+            app.config["UPLOAD_FOLDER"],
+            filename
+        )
+
+        file.save(filepath)
+
+        extension = (
+            filename
+            .rsplit(".", 1)[1]
+            .lower()
+        )
+
+        transactions = []
+        dataframe = None
+        analysis = None
+
+        # ----------------------------------------------------
+        # CSV / EXCEL
+        # ----------------------------------------------------
+
+        if extension in {
+            "csv",
+            "xlsx",
+            "xls"
+        }:
+
+            analysis = analyze_file(
+                filepath
+            )
+
+            if isinstance(analysis, dict):
+
+                raw_transactions = analysis.get(
+                    "transactions",
+                    []
+                )
+
+                # Convert safely
+                if isinstance(
+                    raw_transactions,
+                    list
+                ):
+
+                    if raw_transactions and isinstance(
+                        raw_transactions[0],
+                        dict
+                    ):
+
+                        dataframe = pd.DataFrame(
+                            raw_transactions
+                        )
+
+            # If finance_engine didn't return transactions,
+            # directly read the file.
+            if dataframe is None or dataframe.empty:
+
+                if extension == "csv":
+                    dataframe = pd.read_csv(
+                        filepath
+                    )
+
+                else:
+                    dataframe = pd.read_excel(
+                        filepath
+                    )
+
+            # Normalize common column names
+            rename_map = {}
+
+            for column in dataframe.columns:
+
+                normalized = str(
+                    column
+                ).strip().lower()
+
+                if normalized in {
+                    "date",
+                    "transaction date",
+                    "txn date"
+                }:
+
+                    rename_map[column] = "Date"
+
+                elif normalized in {
+                    "description",
+                    "details",
+                    "merchant",
+                    "narration",
+                    "transaction"
+                }:
+
+                    rename_map[column] = "Description"
+
+                elif normalized in {
+                    "amount",
+                    "transaction amount",
+                    "value"
+                }:
+
+                    rename_map[column] = "Amount"
+
+                elif normalized in {
+                    "category",
+                    "expense category"
+                }:
+
+                    rename_map[column] = "Category"
+
+            dataframe = dataframe.rename(
+                columns=rename_map
+            )
+
+            # Required columns
+            if "Description" not in dataframe.columns:
+
+                dataframe["Description"] = "Transaction"
+
+            if "Date" not in dataframe.columns:
+
+                dataframe["Date"] = (
+                    date.today().isoformat()
+                )
+
+            if "Amount" not in dataframe.columns:
+
+                return jsonify({
+                    "success": False,
+                    "error":
+                        "The uploaded file must contain an Amount column."
+                }), 400
+
+            if "Category" not in dataframe.columns:
+
+                dataframe["Category"] = dataframe[
+                    "Description"
+                ].apply(
+                    categorize
+                )
+
+            # Amount cleanup
+            dataframe["Amount"] = dataframe[
+                "Amount"
+            ].apply(
+                clean_amount
+            )
+
+            # Remove invalid rows
+            dataframe = dataframe[
+                dataframe["Description"]
+                .astype(str)
+                .str.strip()
+                != ""
+            ].copy()
+
+            transactions = dataframe.to_dict(
+                orient="records"
+            )
+
+        # ----------------------------------------------------
+        # PDF
+        # ----------------------------------------------------
+
+        elif extension == "pdf":
+
+            text = extract_pdf_text(
+                filepath
+            )
+
+            extracted = extract_from_text(
+                text
+            )
+
+            transactions = extracted.get(
+                "transactions",
+                []
+            )
+
+            dataframe = ai_transactions_to_dataframe(
+                transactions
+            )
+
+        # ----------------------------------------------------
+        # DOCX
+        # ----------------------------------------------------
+
+        elif extension == "docx":
+
+            text = extract_docx_text(
+                filepath
+            )
+
+            extracted = extract_from_text(
+                text
+            )
+
+            transactions = extracted.get(
+                "transactions",
+                []
+            )
+
+            dataframe = ai_transactions_to_dataframe(
+                transactions
+            )
+
+        # ----------------------------------------------------
+        # IMAGE
+        # ----------------------------------------------------
+
+        elif extension in {
+            "png",
+            "jpg",
+            "jpeg"
+        }:
+
+            extracted = extract_from_image(
+                filepath
+            )
+
+            transactions = extracted.get(
+                "transactions",
+                []
+            )
+
+            dataframe = ai_transactions_to_dataframe(
+                transactions
+            )
+
+        # ----------------------------------------------------
+        # SAVE TO DATABASE
+        # ----------------------------------------------------
+
+        if dataframe is not None and not dataframe.empty:
+
+            # Make sure finance-engine columns exist
+            if "Date" not in dataframe.columns:
+                dataframe["Date"] = date.today().isoformat()
+
+            if "Description" not in dataframe.columns:
+                dataframe["Description"] = "Transaction"
+
+            if "Amount" not in dataframe.columns:
+                dataframe["Amount"] = 0
+
+            if "Category" not in dataframe.columns:
+                dataframe["Category"] = dataframe[
+                    "Description"
+                ].apply(categorize)
+
+            dataframe["Amount"] = dataframe[
+                "Amount"
+            ].apply(clean_amount)
+
+            # Analyze
+            try:
+
+                analysis = analyze_dataframe(
+                    dataframe
+                )
+
+            except Exception as analysis_error:
+
+                print(
+                    "FILE ANALYSIS ERROR:",
+                    repr(analysis_error)
+                )
+
+                analysis = None
+
+            # Save to DB
+            try:
+
+                add_transactions(
+                    dataframe
+                )
+
+            except Exception as db_error:
+
+                print(
+                    "DATABASE UPLOAD ERROR:",
+                    repr(db_error)
+                )
+
+                # Fallback: insert one-by-one
+                for row in dataframe_to_database_rows(
+                    dataframe
+                ):
+
+                    try:
+
+                        add_transaction(
+                            date=row["date"],
+                            description=row["description"],
+                            amount=row["amount"],
+                            category=row["category"],
+                            transaction_type=row[
+                                "transaction_type"
+                            ],
+                            source="upload"
+                        )
+
+                    except Exception as row_error:
+
+                        print(
+                            "ROW INSERT ERROR:",
+                            repr(row_error)
+                        )
+
+        # ----------------------------------------------------
+        # DEFAULT ANALYSIS
+        # ----------------------------------------------------
+
+        if analysis is None:
+
+            analysis = {
+                "income": 0,
+                "expenses": 0,
+                "savings": 0,
+                "savings_rate": 0,
+                "transaction_count": 0,
+                "category_spending": {},
+                "recurring": [],
+                "unusual": [],
+                "monthly_spending": {},
+                "transactions": []
+            }
+
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                f"Successfully analyzed {len(transactions)} transaction(s).",
+
+            "filename":
+                filename,
+
+            "analysis":
+                analysis
+
+        })
+
+    except Exception as e:
+
+        print(
+            "UPLOAD ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+
+            "success": False,
+
+            "error":
+                str(e)
+
+        }), 500
+
+
+# ============================================================
+# DASHBOARD API
+# ============================================================
+
+@app.route("/api/dashboard", methods=["GET"])
+def dashboard_api():
+
+    try:
+
+        transactions = get_transactions()
+
+        if not transactions:
+
+            return jsonify({
+
+                "income": 0,
+                "expenses": 0,
+                "savings": 0,
+                "savings_rate": 0,
+                "transaction_count": 0,
+                "category_spending": {},
+                "recurring": [],
+                "unusual": [],
+                "monthly_spending": {},
+                "transactions": [],
+                "insights": []
+
+            })
+
+        # FIX:
+        # Convert database format into finance_engine format.
+        dataframe = database_transactions_to_dataframe(
+            transactions
+        )
+
+        analysis = analyze_dataframe(
+            dataframe
+        )
+
+        # Keep original DB transactions
+        analysis["transactions"] = transactions
+
+        analysis["transaction_count"] = len(
+            transactions
+        )
+
+        analysis["income"] = float(
+            analysis.get(
+                "income",
+                0
+            ) or 0
+        )
+
+        analysis["expenses"] = float(
+            analysis.get(
+                "expenses",
+                0
+            ) or 0
+        )
+
+        analysis["savings"] = float(
+            analysis.get(
+                "savings",
+                0
+            ) or 0
+        )
+
+        analysis["savings_rate"] = float(
+            analysis.get(
+                "savings_rate",
+                0
+            ) or 0
+        )
+
+        # ----------------------------------------------------
+        # INSIGHTS
+        # ----------------------------------------------------
+
+        insights = []
+
+        income = analysis["income"]
+        expenses = analysis["expenses"]
+        savings = analysis["savings"]
+
+        if income > 0:
+
+            rate = (
+                savings /
+                income
+            ) * 100
+
+            if rate >= 30:
+
+                insights.append(
+                    "Your recorded savings rate is above 30%."
+                )
+
+            elif rate >= 15:
+
+                insights.append(
+                    "You maintained a positive savings rate."
+                )
+
+            else:
+
+                insights.append(
+                    "Your recorded savings rate is relatively low."
+                )
+
+        if expenses > 0:
+
+            insights.append(
+                f"You have recorded ₹{expenses:,.0f} in expenses."
+            )
+
+        if savings > 0:
+
+            insights.append(
+                f"Your recorded savings are ₹{savings:,.0f}."
+            )
+
+        elif savings < 0:
+
+            insights.append(
+                "Your recorded expenses are higher than your income."
+            )
+
+        categories = analysis.get(
+            "category_spending",
+            {}
+        ) or {}
+
+        if categories:
+
+            highest_category = max(
+                categories,
+                key=categories.get
+            )
+
+            highest_amount = categories[
+                highest_category
+            ]
+
+            insights.append(
+                f"{highest_category} is your highest spending category at ₹{highest_amount:,.0f}."
+            )
+
+        analysis["insights"] = insights
+
+        return jsonify(
+            analysis
+        )
+
+    except Exception as e:
+
+        print(
+            "DASHBOARD ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+# ============================================================
+# TRANSACTIONS API
+# ============================================================
+
+@app.route("/api/transactions", methods=["GET"])
+def transactions_api():
+
+    try:
+
+        return jsonify({
+            "transactions":
+                get_transactions()
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route("/api/transactions", methods=["POST"])
+def create_transaction():
+
+    try:
+
+        data = request.get_json(
+            silent=True
+        ) or {}
+
+        description = str(
+            data.get(
+                "description",
+                ""
+            )
+        ).strip()
+
+        if not description:
+
+            return jsonify({
+                "error":
+                    "Description is required."
+            }), 400
+
+        amount = clean_amount(
+            data.get(
+                "amount",
+                0
+            )
+        )
+
+        if amount <= 0:
+
+            return jsonify({
+                "error":
+                    "Amount must be greater than zero."
+            }), 400
+
+        transaction_type = str(
+            data.get(
+                "transaction_type",
+                data.get(
+                    "type",
+                    "expense"
+                )
+            )
+        ).lower()
+
+        if transaction_type not in {
+            "income",
+            "expense"
+        }:
+
+            transaction_type = "expense"
+
+        transaction_date = data.get(
+            "date"
+        )
+
+        if not transaction_date:
+
+            transaction_date = date.today().isoformat()
+
+        category = data.get(
+            "category"
+        )
+
+        if not category:
+
+            category = categorize(
+                description
+            )
+
+        transaction_id = add_transaction(
+
+            date=transaction_date,
+
+            description=description,
+
+            amount=amount,
+
+            category=category,
+
+            transaction_type=transaction_type,
+
+            source=data.get(
+                "source",
+                "manual"
+            )
+
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                "Transaction added successfully.",
+
+            "id":
+                transaction_id
+
+        })
+
+    except Exception as e:
+
+        print(
+            "CREATE TRANSACTION ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route(
+    "/api/transactions/<int:transaction_id>",
+    methods=["GET"]
+)
+def get_single_transaction(transaction_id):
+
+    try:
+
+        transaction = get_transaction(
+            transaction_id
+        )
+
+        if not transaction:
+
+            return jsonify({
+                "error":
+                    "Transaction not found."
+            }), 404
+
+        return jsonify({
+            "transaction":
+                transaction
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route(
+    "/api/transactions/<int:transaction_id>",
+    methods=["PUT"]
+)
+def edit_transaction(transaction_id):
+
+    try:
+
+        existing = get_transaction(
+            transaction_id
+        )
+
+        if not existing:
+
+            return jsonify({
+                "error":
+                    "Transaction not found."
+            }), 404
+
+        data = request.get_json(
+            silent=True
+        ) or {}
+
+        transaction_date = data.get(
+            "date",
+            existing.get("date")
+        )
+
+        description = data.get(
+            "description",
+            existing.get("description")
+        )
+
+        amount = clean_amount(
+            data.get(
+                "amount",
+                existing.get(
+                    "amount",
+                    0
+                )
+            )
+        )
+
+        category = data.get(
+            "category",
+            existing.get(
+                "category",
+                "Other"
+            )
+        )
+
+        transaction_type = data.get(
+            "transaction_type",
+            existing.get(
+                "transaction_type",
+                "expense"
+            )
+        )
+
+        update_transaction(
+
+            transaction_id,
+
+            date=transaction_date,
+
+            description=description,
+
+            amount=amount,
+
+            category=category,
+
+            transaction_type=transaction_type
+
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                "Transaction updated successfully."
+
+        })
+
+    except Exception as e:
+
+        print(
+            "UPDATE TRANSACTION ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route(
+    "/api/transactions/<int:transaction_id>",
+    methods=["DELETE"]
+)
+def remove_transaction(transaction_id):
+
+    try:
+
+        existing = get_transaction(
+            transaction_id
+        )
+
+        if not existing:
+
+            return jsonify({
+                "error":
+                    "Transaction not found."
+            }), 404
+
+        delete_transaction(
+            transaction_id
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                "Transaction deleted successfully."
+
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+# ============================================================
+# BUDGET API
+# ============================================================
+
+@app.route("/api/budgets", methods=["GET"])
+def budgets_api():
+
+    try:
+
+        return jsonify({
+            "budgets":
+                get_budgets()
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route("/api/budgets", methods=["POST"])
+def create_budget():
+
+    try:
+
+        data = request.get_json(
+            silent=True
+        ) or {}
+
+        category = str(
+            data.get(
+                "category",
+                ""
+            )
+        ).strip()
+
+        if not category:
+
+            return jsonify({
+                "error":
+                    "Category is required."
+            }), 400
+
+        amount = clean_amount(
+            data.get(
+                "amount",
+                0
+            )
+        )
+
+        if amount <= 0:
+
+            return jsonify({
+                "error":
+                    "Budget amount must be greater than zero."
+            }), 400
+
+        month = data.get(
+            "month",
+            date.today().strftime("%Y-%m")
+        )
+
+        budget_id = set_budget(
+            category=category,
+            amount=amount,
+            month=month
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                "Budget saved successfully.",
+
+            "id":
+                budget_id
+
+        })
+
+    except Exception as e:
+
+        print(
+            "BUDGET ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route(
+    "/api/budgets/<int:budget_id>",
+    methods=["DELETE"]
+)
+def remove_budget(budget_id):
+
+    try:
+
+        delete_budget(
+            budget_id
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                "Budget deleted successfully."
+
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+# ============================================================
+# GOALS API
+# ============================================================
+
+@app.route("/api/goals", methods=["GET"])
+def goals_api():
+
+    try:
+
+        return jsonify({
+            "goals":
+                get_goals()
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route("/api/goals", methods=["POST"])
+def create_goal():
+
+    try:
+
+        data = request.get_json(
+            silent=True
+        ) or {}
+
+        name = str(
+            data.get(
+                "name",
+                ""
+            )
+        ).strip()
+
+        if not name:
+
+            return jsonify({
+                "error":
+                    "Goal name is required."
+            }), 400
+
+        target_amount = clean_amount(
+            data.get(
+                "target_amount",
+                0
+            )
+        )
+
+        if target_amount <= 0:
+
+            return jsonify({
+                "error":
+                    "Target amount must be greater than zero."
+            }), 400
+
+        current_amount = clean_amount(
+            data.get(
+                "current_amount",
+                0
+            )
+        )
+
+        deadline = data.get(
+            "deadline"
+        )
+
+        goal_id = add_goal(
+
+            name=name,
+
+            target_amount=target_amount,
+
+            current_amount=current_amount,
+
+            deadline=deadline
+
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                "Goal created successfully.",
+
+            "id":
+                goal_id
+
+        })
+
+    except Exception as e:
+
+        print(
+            "CREATE GOAL ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route(
+    "/api/goals/<int:goal_id>",
+    methods=["GET"]
+)
+def get_single_goal(goal_id):
+
+    try:
+
+        goal = get_goal(
+            goal_id
+        )
+
+        if not goal:
+
+            return jsonify({
+                "error":
+                    "Goal not found."
+            }), 404
+
+        return jsonify({
+            "goal":
+                goal
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route(
+    "/api/goals/<int:goal_id>",
+    methods=["PUT"]
+)
+def edit_goal(goal_id):
+
+    try:
+
+        existing = get_goal(
+            goal_id
+        )
+
+        if not existing:
+
+            return jsonify({
+                "error":
+                    "Goal not found."
+            }), 404
+
+        data = request.get_json(
+            silent=True
+        ) or {}
+
+        name = data.get(
+            "name",
+            existing.get("name")
+        )
+
+        target_amount = clean_amount(
+            data.get(
+                "target_amount",
+                existing.get(
+                    "target_amount",
+                    0
+                )
+            )
+        )
+
+        current_amount = clean_amount(
+            data.get(
+                "current_amount",
+                existing.get(
+                    "current_amount",
+                    0
+                )
+            )
+        )
+
+        deadline = data.get(
+            "deadline",
+            existing.get("deadline")
+        )
+
+        update_goal(
+
+            goal_id,
+
+            name=name,
+
+            target_amount=target_amount,
+
+            current_amount=current_amount,
+
+            deadline=deadline
+
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                "Goal updated successfully."
+
+        })
+
+    except Exception as e:
+
+        print(
+            "UPDATE GOAL ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route(
+    "/api/goals/<int:goal_id>",
+    methods=["DELETE"]
+)
+def remove_goal(goal_id):
+
+    try:
+
+        delete_goal(
+            goal_id
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "message":
+                "Goal deleted successfully."
+
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+# ============================================================
+# GOAL IMPACT
+# ============================================================
+
+@app.route("/api/goal-impact", methods=["GET"])
+def goal_impact():
+
+    try:
+
+        goals = get_goals()
+        transactions = get_transactions()
+
+        total_income = 0
+        total_expenses = 0
+
+        for transaction in transactions:
+
+            amount = transaction_amount(
+                transaction
+            )
+
+            if transaction_is_income(
+                transaction
+            ):
+
+                total_income += abs(amount)
+
+            else:
+
+                total_expenses += abs(amount)
+
+        monthly_savings = (
+            total_income -
+            total_expenses
+        )
+
+        results = []
+
+        for goal in goals:
+
+            target = clean_amount(
+                goal.get(
+                    "target_amount",
+                    0
+                )
+            )
+
+            current = clean_amount(
+                goal.get(
+                    "current_amount",
+                    0
+                )
+            )
+
+            remaining = max(
+                target - current,
+                0
+            )
+
+            progress = 0
+
+            if target > 0:
+
+                progress = min(
+                    current / target * 100,
+                    100
+                )
+
+            months_needed = None
+
+            if (
+                remaining > 0
+                and monthly_savings > 0
+            ):
+
+                months_needed = (
+                    remaining /
+                    monthly_savings
+                )
+
+            results.append({
+
+                "id":
+                    goal.get("id"),
+
+                "name":
+                    goal.get(
+                        "name",
+                        "Financial Goal"
+                    ),
+
+                "target_amount":
+                    target,
+
+                "current_amount":
+                    current,
+
+                "remaining_amount":
+                    remaining,
+
+                "progress":
+                    round(
+                        progress,
+                        1
+                    ),
+
+                "monthly_savings":
+                    round(
+                        monthly_savings,
+                        2
+                    ),
+
+                "months_needed":
+                    round(
+                        months_needed,
+                        1
+                    )
+                    if months_needed is not None
+                    else None,
+
+                "deadline":
+                    goal.get("deadline")
+
+            })
+
+        return jsonify({
+
+            "goals":
+                results,
+
+            "monthly_income":
+                round(
+                    total_income,
+                    2
+                ),
+
+            "monthly_expenses":
+                round(
+                    total_expenses,
+                    2
+                ),
+
+            "monthly_savings":
+                round(
+                    monthly_savings,
+                    2
+                )
+
+        })
+
+    except Exception as e:
+
+        print(
+            "GOAL IMPACT ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+# ============================================================
+# BUDGET ANALYSIS
+# ============================================================
+
+@app.route("/api/budget-analysis", methods=["GET"])
+def budget_analysis():
+
+    try:
+
+        budgets = get_budgets()
+        transactions = get_transactions()
+
+        category_actuals = {}
+
+        for transaction in transactions:
+
+            if not transaction_is_expense(
+                transaction
+            ):
+                continue
+
+            category = str(
+                transaction.get(
+                    "category",
+                    "Other"
+                )
+            )
+
+            amount = abs(
+                transaction_amount(
+                    transaction
+                )
+            )
+
+            category_actuals[category] = (
+                category_actuals.get(
+                    category,
+                    0
+                )
+                + amount
+            )
+
+        results = []
+
+        for budget in budgets:
+
+            category = str(
+                budget.get(
+                    "category",
+                    "Other"
+                )
+            )
+
+            budget_amount = clean_amount(
+                budget.get(
+                    "amount",
+                    budget.get(
+                        "budget_amount",
+                        0
+                    )
+                )
+            )
+
+            actual = float(
+                category_actuals.get(
+                    category,
+                    0
+                )
+            )
+
+            remaining = (
+                budget_amount -
+                actual
+            )
+
+            used_percent = 0
+
+            if budget_amount > 0:
+
+                used_percent = (
+                    actual /
+                    budget_amount
+                ) * 100
+
+            if used_percent >= 100:
+
+                status = "over"
+
+            elif used_percent >= 80:
+
+                status = "warning"
+
+            else:
+
+                status = "healthy"
+
+            results.append({
+
+                "id":
+                    budget.get("id"),
+
+                "category":
+                    category,
+
+                "budget":
+                    round(
+                        budget_amount,
+                        2
+                    ),
+
+                "actual":
+                    round(
+                        actual,
+                        2
+                    ),
+
+                "remaining":
+                    round(
+                        remaining,
+                        2
+                    ),
+
+                "used_percent":
+                    round(
+                        used_percent,
+                        1
+                    ),
+
+                "status":
+                    status
+
+            })
+
+        return jsonify({
+            "budgets":
+                results
+        })
+
+    except Exception as e:
+
+        print(
+            "BUDGET ANALYSIS ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+# ============================================================
+# FINPILOT AGENT
+# ============================================================
+
+def local_agent_query(message):
+
+    query = message.lower().strip()
+
+    transactions = get_transactions()
+
+    # --------------------------------------------------------
+    # TOTAL SPENDING
+    # --------------------------------------------------------
+
+    if (
+        "how much did i spend" in query
+        or "total spending" in query
+        or "total expenses" in query
+        or "how much have i spent" in query
+    ):
+
+        expenses = 0
+
+        for transaction in transactions:
+
+            if transaction_is_expense(
+                transaction
+            ):
+
+                expenses += abs(
+                    transaction_amount(
+                        transaction
+                    )
+                )
+
+        return {
+
+            "message":
+                f"You have spent ₹{expenses:,.2f} in total.",
+
+            "action":
+                "NONE",
+
+            "requires_confirmation":
+                False
+
+        }
+
+    # --------------------------------------------------------
+    # INCOME
+    # --------------------------------------------------------
+
+    if (
+        "income" in query
+        or "salary" in query
+        or "earned" in query
+    ):
+
+        income = 0
+
+        for transaction in transactions:
+
+            if transaction_is_income(
+                transaction
+            ):
+
+                income += abs(
+                    transaction_amount(
+                        transaction
+                    )
+                )
+
+        return {
+
+            "message":
+                f"Your recorded income is ₹{income:,.2f}.",
+
+            "action":
+                "NONE",
+
+            "requires_confirmation":
+                False
+
+        }
+
+    # --------------------------------------------------------
+    # SAVINGS
+    # --------------------------------------------------------
+
+    if (
+        "savings" in query
+        or "saved" in query
+    ):
+
+        income = 0
+        expenses = 0
+
+        for transaction in transactions:
+
+            amount = transaction_amount(
+                transaction
+            )
+
+            if transaction_is_income(
+                transaction
+            ):
+
+                income += abs(amount)
+
+            else:
+
+                expenses += abs(amount)
+
+        savings = income - expenses
+
+        return {
+
+            "message":
+                f"Your current recorded savings are ₹{savings:,.2f}.",
+
+            "action":
+                "NONE",
+
+            "requires_confirmation":
+                False
+
+        }
+
+    # --------------------------------------------------------
+    # HIGHEST CATEGORY
+    # --------------------------------------------------------
+
+    if (
+        "highest category" in query
+        or "most spending" in query
+        or "biggest spending" in query
+        or "spending category" in query
+    ):
+
+        categories = {}
+
+        for transaction in transactions:
+
+            if not transaction_is_expense(
+                transaction
+            ):
+                continue
+
+            category = str(
+                transaction.get(
+                    "category",
+                    "Other"
+                )
+            )
+
+            amount = abs(
+                transaction_amount(
+                    transaction
+                )
+            )
+
+            categories[category] = (
+                categories.get(
+                    category,
+                    0
+                )
+                + amount
+            )
+
+        if categories:
+
+            highest = max(
+                categories,
+                key=categories.get
+            )
+
+            return {
+
+                "message":
+                    f"Your highest spending category is {highest} at ₹{categories[highest]:,.2f}.",
+
+                "action":
+                    "NONE",
+
+                "requires_confirmation":
+                    False
+
+            }
+
+    # --------------------------------------------------------
+    # RECURRING
+    # --------------------------------------------------------
+
+    if (
+        "recurring" in query
+        or "subscription" in query
+        or "subscriptions" in query
+    ):
+
+        dataframe = database_transactions_to_dataframe(
+            transactions
+        )
+
+        if not dataframe.empty:
+
+            try:
+
+                analysis = analyze_dataframe(
+                    dataframe
+                )
+
+                recurring = analysis.get(
+                    "recurring",
+                    []
+                )
+
+                if recurring:
+
+                    names = []
+
+                    for item in recurring:
+
+                        if isinstance(
+                            item,
+                            dict
+                        ):
+
+                            names.append(
+                                str(
+                                    item.get(
+                                        "description",
+                                        item.get(
+                                            "name",
+                                            "Payment"
+                                        )
+                                    )
+                                )
+                            )
+
+                        else:
+
+                            names.append(
+                                str(item)
+                            )
+
+                    return {
+
+                        "message":
+                            "Recurring payments detected: "
+                            + ", ".join(names),
+
+                        "action":
+                            "NONE",
+
+                        "requires_confirmation":
+                            False
+
+                    }
+
+            except Exception:
+                pass
+
+        return {
+
+            "message":
+                "I couldn't detect recurring payments from the current transaction data.",
+
+            "action":
+                "NONE",
+
+            "requires_confirmation":
+                False
+
+        }
+
+    # --------------------------------------------------------
+    # UNUSUAL
+    # --------------------------------------------------------
+
+    if (
+        "unusual" in query
+        or "abnormal" in query
+        or "suspicious spending" in query
+    ):
+
+        dataframe = database_transactions_to_dataframe(
+            transactions
+        )
+
+        if not dataframe.empty:
+
+            try:
+
+                analysis = analyze_dataframe(
+                    dataframe
+                )
+
+                unusual = analysis.get(
+                    "unusual",
+                    []
+                )
+
+                if unusual:
+
+                    first = unusual[0]
+
+                    if isinstance(
+                        first,
+                        dict
+                    ):
+
+                        description = first.get(
+                            "description",
+                            first.get(
+                                "Description",
+                                "Transaction"
+                            )
+                        )
+
+                        amount = first.get(
+                            "amount",
+                            first.get(
+                                "Amount",
+                                0
+                            )
+                        )
+
+                        return {
+
+                            "message":
+                                f"An unusual transaction was detected: {description} for ₹{abs(clean_amount(amount)):,.2f}.",
+
+                            "action":
+                                "NONE",
+
+                            "requires_confirmation":
+                                False
+
+                        }
+
+            except Exception:
+                pass
+
+        return {
+
+            "message":
+                "No unusual spending was detected from the current data.",
+
+            "action":
+                "NONE",
+
+            "requires_confirmation":
+                False
+
+        }
+
+    # --------------------------------------------------------
+    # SEARCH TRANSACTION
+    # --------------------------------------------------------
+
+    search_words = [
+        "amazon",
+        "swiggy",
+        "zomato",
+        "netflix",
+        "spotify",
+        "uber",
+        "rent",
+        "electricity"
+    ]
+
+    for word in search_words:
+
+        if word in query:
+
+            matches = []
+
+            for transaction in transactions:
+
+                description = str(
+                    transaction.get(
+                        "description",
+                        ""
+                    )
+                ).lower()
+
+                if word in description:
+
+                    matches.append(
+                        transaction
+                    )
+
+            if matches:
+
+                total = sum(
+                    abs(
+                        transaction_amount(t)
+                    )
+                    for t in matches
+                )
+
+                return {
+
+                    "message":
+                        f"I found {len(matches)} {word} transaction(s) totaling ₹{total:,.2f}.",
+
+                    "action":
+                        "NONE",
+
+                    "requires_confirmation":
+                        False,
+
+                    "transactions":
+                        matches
+
+                }
+
+    return {
+
+        "message":
+            "I can help with spending, income, savings, categories, recurring payments, unusual spending, transactions, budgets and goals.",
+
+        "action":
+            "NONE",
+
+        "requires_confirmation":
+            False
+
+    }
+
+
+# ============================================================
+# ADD TRANSACTION PARSER
+# ============================================================
+
+def parse_add_transaction(message):
+
+    pattern = re.compile(
+        r"""
+        (?:add|record|log)
+        \s+
+        (?:₹|rs\.?|inr)?
+        \s*
+        ([\d,]+(?:\.\d+)?)
+        \s+
+        (.+?)
+        \s+
+        (expense|income)
+        (?:\s+(today|yesterday|\d{4}-\d{2}-\d{2}))?
+        $
+        """,
+        re.IGNORECASE |
+        re.VERBOSE
+    )
+
+    match = pattern.search(
+        message.strip()
+    )
+
+    if not match:
+        return None
+
+    amount = clean_amount(
+        match.group(1)
+    )
+
+    description = match.group(2).strip()
+
+    transaction_type = (
+        match.group(3)
+        .lower()
+    )
+
+    date_text = (
+        match.group(4)
+        or "today"
+    )
+
+    transaction_date = parse_date_from_text(
+        date_text
+    )
+
+    category = categorize(
+        description
+    )
+
+    return {
+
+        "date":
+            transaction_date,
+
+        "description":
+            description,
+
+        "amount":
+            amount,
+
+        "category":
+            category,
+
+        "transaction_type":
+            transaction_type,
+
+        "source":
+            "agent"
+
+    }
+
+
+# ============================================================
+# AGENT API
+# ============================================================
+
+@app.route("/api/agent", methods=["POST"])
+def agent():
+
+    try:
+
+        data = request.get_json(
+            silent=True
+        ) or {}
+
+        message = str(
+            data.get(
+                "message",
+                ""
+            )
+        ).strip()
+
+        if not message:
+
+            return jsonify({
+
+                "message":
+                    "Please enter a financial question or command.",
+
+                "action":
+                    "NONE",
+
+                "requires_confirmation":
+                    False
+
+            })
+
+        # ----------------------------------------------------
+        # DELETE
+        # ----------------------------------------------------
+
+        delete_match = re.search(
+            r"(?:delete|remove)\s+(?:transaction\s+)?(\d+)",
+            message.lower()
+        )
+
+        if delete_match:
+
+            transaction_id = int(
+                delete_match.group(1)
+            )
+
+            confirmation = bool(
+                data.get(
+                    "confirm",
+                    False
+                )
+            )
+
+            if not confirmation:
+
+                return jsonify({
+
+                    "message":
+                        f"Please confirm deletion of transaction #{transaction_id}.",
+
+                    "action":
+                        "DELETE_TRANSACTION",
+
+                    "requires_confirmation":
+                        True,
+
+                    "data": {
+                        "id":
+                            transaction_id
+                    }
+
+                })
+
+            existing = get_transaction(
+                transaction_id
+            )
+
+            if not existing:
+
+                return jsonify({
+
+                    "message":
+                        "Transaction not found.",
+
+                    "action":
+                        "DELETE_TRANSACTION",
+
+                    "requires_confirmation":
+                        False
+
+                }), 404
+
+            delete_transaction(
+                transaction_id
+            )
+
+            return jsonify({
+
+                "message":
+                    f"Transaction #{transaction_id} deleted successfully.",
+
+                "action":
+                    "DELETE_TRANSACTION",
+
+                "requires_confirmation":
+                    False
+
+            })
+
+        # ----------------------------------------------------
+        # ADD TRANSACTION
+        # ----------------------------------------------------
+
+        add_data = parse_add_transaction(
+            message
+        )
+
+        if add_data:
+
+            transaction_id = add_transaction(
+
+                date=add_data["date"],
+
+                description=add_data["description"],
+
+                amount=add_data["amount"],
+
+                category=add_data["category"],
+
+                transaction_type=add_data[
+                    "transaction_type"
+                ],
+
+                source="agent"
+
+            )
+
+            return jsonify({
+
+                "message":
+                    f"Done. Added ₹{add_data['amount']:,.2f} {add_data['transaction_type']} for {add_data['description']}.",
+
+                "action":
+                    "ADD_TRANSACTION",
+
+                "requires_confirmation":
+                    False,
+
+                "data": {
+
+                    **add_data,
+
+                    "id":
+                        transaction_id
+
+                }
+
+            })
+
+        # ----------------------------------------------------
+        # BUDGET
+        # Example:
+        # set food budget 6000
+        # budget food 6000
+        # ----------------------------------------------------
+
+        budget_pattern = re.search(
+            r"""
+            (?:
+                set\s+(.+?)\s+budget
+                |
+                budget\s+(.+?)
+            )
+            \s+
+            (?:to\s+)?
+            (?:₹|rs\.?|inr)?
+            \s*
+            ([\d,]+(?:\.\d+)?)
+            $
+            """,
+            message.strip(),
+            re.IGNORECASE |
+            re.VERBOSE
+        )
+
+        if budget_pattern:
+
+            category = (
+                budget_pattern.group(1)
+                or budget_pattern.group(2)
+            ).strip()
+
+            amount = clean_amount(
+                budget_pattern.group(3)
+            )
+
+            month = date.today().strftime(
+                "%Y-%m"
+            )
+
+            budget_id = set_budget(
+
+                category=category,
+
+                amount=amount,
+
+                month=month
+
+            )
+
+            return jsonify({
+
+                "message":
+                    f"Budget set: ₹{amount:,.2f} for {category}.",
+
+                "action":
+                    "SET_BUDGET",
+
+                "requires_confirmation":
+                    False,
+
+                "data": {
+
+                    "id":
+                        budget_id,
+
+                    "category":
+                        category,
+
+                    "amount":
+                        amount,
+
+                    "month":
+                        month
+
+                }
+
+            })
+
+        # ----------------------------------------------------
+        # GOAL
+        # Example:
+        # create laptop goal 80000
+        # ----------------------------------------------------
+
+        goal_pattern = re.search(
+            r"""
+            (?:
+                create
+                |
+                set
+                |
+                add
+            )
+            \s+
+            (.+?)
+            \s+
+            goal
+            \s+
+            (?:₹|rs\.?|inr)?
+            \s*
+            ([\d,]+(?:\.\d+)?)
+            $
+            """,
+            message.strip(),
+            re.IGNORECASE |
+            re.VERBOSE
+        )
+
+        if goal_pattern:
+
+            name = goal_pattern.group(1).strip()
+
+            target = clean_amount(
+                goal_pattern.group(2)
+            )
+
+            goal_id = add_goal(
+
+                name=name,
+
+                target_amount=target,
+
+                current_amount=0,
+
+                deadline=None
+
+            )
+
+            return jsonify({
+
+                "message":
+                    f"Goal created: {name} with target ₹{target:,.2f}.",
+
+                "action":
+                    "CREATE_GOAL",
+
+                "requires_confirmation":
+                    False,
+
+                "data": {
+
+                    "id":
+                        goal_id,
+
+                    "name":
+                        name,
+
+                    "target_amount":
+                        target
+
+                }
+
+            })
+
+        # ----------------------------------------------------
+        # NORMAL QUESTION
+        # ----------------------------------------------------
+
+        result = local_agent_query(
+            message
+        )
+
+        return jsonify(
+            result
+        )
+
+    except Exception as e:
+
+        print(
+            "AGENT ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+
+            "message":
+                f"FinPilot encountered an error: {str(e)}",
+
+            "action":
+                "ERROR",
+
+            "requires_confirmation":
+                False
+
+        }), 500
+
+
+# ============================================================
+# MONTHLY REPORT
+# ============================================================
+
+def get_month_transactions(requested_month):
+
+    transactions = get_transactions()
+
+    result = []
+
+    for transaction in transactions:
+
+        transaction_date = str(
+            transaction.get(
+                "date",
+                ""
+            )
+        )
+
+        if transaction_date.startswith(
+            requested_month
+        ):
+
+            result.append(
+                transaction
+            )
+
+    return result
+
+
+def build_monthly_report(requested_month):
+
+    month_transactions = get_month_transactions(
+        requested_month
+    )
+
+    income = 0
+    expenses = 0
+
+    categories = {}
+
+    for transaction in month_transactions:
+
+        amount = transaction_amount(
+            transaction
+        )
+
+        if transaction_is_income(
+            transaction
+        ):
+
+            income += abs(amount)
+
+        else:
+
+            expenses += abs(amount)
+
+            category = str(
+                transaction.get(
+                    "category",
+                    "Other"
+                )
+            )
+
+            categories[category] = (
+                categories.get(
+                    category,
+                    0
+                )
+                + abs(amount)
+            )
+
+    savings = income - expenses
+
+    savings_rate = (
+        (savings / income) * 100
+        if income > 0
+        else 0
+    )
+
+    # Recurring
+    recurring = []
+
+    if month_transactions:
+
+        dataframe = database_transactions_to_dataframe(
+            month_transactions
+        )
+
+        try:
+
+            engine_result = analyze_dataframe(
+                dataframe
+            )
+
+            recurring = engine_result.get(
+                "recurring",
+                []
+            )
+
+        except Exception:
+            recurring = []
+
+    # Budgets
+    budgets = get_budgets()
+
+    budget_results = []
+
+    for budget in budgets:
+
+        category = str(
+            budget.get(
+                "category",
+                "Other"
+            )
+        )
+
+        budget_amount = clean_amount(
+            budget.get(
+                "amount",
+                budget.get(
+                    "budget_amount",
+                    0
+                )
+            )
+        )
+
+        actual = categories.get(
+            category,
+            0
+        )
+
+        remaining = (
+            budget_amount -
+            actual
+        )
+
+        used_percent = (
+            actual / budget_amount * 100
+            if budget_amount > 0
+            else 0
+        )
+
+        budget_results.append({
+
+            "id":
+                budget.get("id"),
+
+            "category":
+                category,
+
+            "budget":
+                round(
+                    budget_amount,
+                    2
+                ),
+
+            "actual":
+                round(
+                    actual,
+                    2
+                ),
+
+            "remaining":
+                round(
+                    remaining,
+                    2
+                ),
+
+            "used_percent":
+                round(
+                    used_percent,
+                    1
+                )
+
+        })
+
+    # Goals
+    goals = get_goals()
+
+    goal_results = []
+
+    for goal in goals:
+
+        target = clean_amount(
+            goal.get(
+                "target_amount",
+                0
+            )
+        )
+
+        current = clean_amount(
+            goal.get(
+                "current_amount",
+                0
+            )
+        )
+
+        progress = (
+            current / target * 100
+            if target > 0
+            else 0
+        )
+
+        goal_results.append({
+
+            "id":
+                goal.get("id"),
+
+            "name":
+                goal.get(
+                    "name",
+                    "Goal"
+                ),
+
+            "target_amount":
+                target,
+
+            "current_amount":
+                current,
+
+            "progress":
+                round(
+                    min(progress, 100),
+                    1
+                ),
+
+            "deadline":
+                goal.get(
+                    "deadline"
+                )
+
+        })
+
+    # Insights
+    insights = []
+
+    if income > 0:
+
+        if savings_rate >= 30:
+
+            insights.append(
+                "Your recorded savings rate was above 30% this month."
+            )
+
+        elif savings_rate >= 15:
+
+            insights.append(
+                "You maintained a positive savings rate this month."
+            )
+
+        else:
+
+            insights.append(
+                "Your recorded savings rate was relatively low this month."
+            )
+
+    if categories:
+
+        highest_category = max(
+            categories,
+            key=categories.get
+        )
+
+        insights.append(
+            f"{highest_category} was your highest spending category at ₹{categories[highest_category]:,.2f}."
+        )
+
+    if expenses > income and income > 0:
+
+        insights.append(
+            "Your recorded expenses were higher than your income this month."
+        )
+
+    if not insights:
+
+        insights.append(
+            "There are not enough recorded transactions to generate detailed insights."
+        )
+
+    return {
+
+        "month":
+            requested_month,
+
+        "income":
+            round(
+                income,
+                2
+            ),
+
+        "expenses":
+            round(
+                expenses,
+                2
+            ),
+
+        "savings":
+            round(
+                savings,
+                2
+            ),
+
+        "savings_rate":
+            round(
+                savings_rate,
+                2
+            ),
+
+        "transaction_count":
+            len(month_transactions),
+
+        "categories":
+            categories,
+
+        "category_spending":
+            categories,
+
+        "recurring":
+            recurring,
+
+        "budgets":
+            budget_results,
+
+        "goals":
+            goal_results,
+
+        "insights":
+            insights,
+
+        "transactions":
+            month_transactions
+
+    }
+
+
+@app.route(
+    "/api/monthly-report",
+    methods=["GET"]
+)
+def monthly_report_api():
+
+    try:
+
+        requested_month = request.args.get(
+            "month"
+        )
+
+        if not requested_month:
+
+            requested_month = date.today().strftime(
+                "%Y-%m"
+            )
+
+        if not re.match(
+            r"^\d{4}-\d{2}$",
+            requested_month
+        ):
+
+            return jsonify({
+                "error":
+                    "Month must be in YYYY-MM format."
+            }), 400
+
+        report = build_monthly_report(
+            requested_month
+        )
+
+        return jsonify(
+            report
+        )
+
+    except Exception as e:
+
+        print(
+            "MONTHLY REPORT ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+# ============================================================
+# MONTHLY REPORT PDF
+# ============================================================
+
+@app.route(
+    "/api/monthly-report/pdf",
+    methods=["GET"]
+)
+def monthly_report_pdf():
+
+    try:
+
+        requested_month = request.args.get(
+            "month"
+        )
+
+        if not requested_month:
+
+            requested_month = date.today().strftime(
+                "%Y-%m"
+            )
+
+        report = build_monthly_report(
+            requested_month
+        )
+
+        income = report["income"]
+        expenses = report["expenses"]
+        savings = report["savings"]
+        savings_rate = report["savings_rate"]
+
+        categories = report["categories"]
+        insights = report["insights"]
+
+        buffer = BytesIO()
+
+        document = SimpleDocTemplate(
+
+            buffer,
+
+            pagesize=A4,
+
+            rightMargin=40,
+
+            leftMargin=40,
+
+            topMargin=40,
+
+            bottomMargin=40
+
+        )
+
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle(
+            "FinPilotTitle",
+            parent=styles["Title"],
+            fontSize=24,
+            alignment=TA_CENTER,
+            spaceAfter=8
+        )
+
+        subtitle_style = ParagraphStyle(
+            "FinPilotSubtitle",
+            parent=styles["Normal"],
+            fontSize=11,
+            alignment=TA_CENTER,
+            textColor=colors.grey,
+            spaceAfter=20
+        )
+
+        heading_style = ParagraphStyle(
+            "SectionHeading",
+            parent=styles["Heading2"],
+            fontSize=15,
+            spaceBefore=15,
+            spaceAfter=10
+        )
+
+        normal_style = ParagraphStyle(
+            "NormalText",
+            parent=styles["Normal"],
+            fontSize=10,
+            leading=14
+        )
+
+        story = []
+
+        story.append(
+            Paragraph(
+                "FinPilot",
+                title_style
+            )
+        )
+
+        story.append(
+            Paragraph(
+                "Personal Finance Monthly Report",
+                subtitle_style
+            )
+        )
+
+        story.append(
+            Paragraph(
+                f"Report Period: {requested_month}",
+                normal_style
+            )
+        )
+
+        story.append(
+            Spacer(1, 15)
+        )
+
+        # Summary
+        summary_data = [
+
+            [
+                "Income",
+                "Expenses",
+                "Savings",
+                "Savings Rate"
+            ],
+
+            [
+                f"Rs. {income:,.2f}",
+                f"Rs. {expenses:,.2f}",
+                f"Rs. {savings:,.2f}",
+                f"{savings_rate:.1f}%"
+            ]
+
+        ]
+
+        summary_table = Table(
+            summary_data,
+            colWidths=[
+                125,
+                125,
+                125,
+                125
+            ]
+        )
+
+        summary_table.setStyle(
+            TableStyle([
+
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor("#111827")
+                ),
+
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, 0),
+                    colors.white
+                ),
+
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 0),
+                    "Helvetica-Bold"
+                ),
+
+                (
+                    "ALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "CENTER"
+                ),
+
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.lightgrey
+                ),
+
+                (
+                    "BACKGROUND",
+                    (0, 1),
+                    (-1, 1),
+                    colors.whitesmoke
+                ),
+
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    10
+                ),
+
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    10
+                )
+
+            ])
+        )
+
+        story.append(
+            summary_table
+        )
+
+        # Spending breakdown
+        story.append(
+            Paragraph(
+                "Spending Breakdown",
+                heading_style
+            )
+        )
+
+        category_data = [
+            [
+                "Category",
+                "Amount",
+                "Percentage"
+            ]
+        ]
+
+        total_category_spending = sum(
+            categories.values()
+        )
+
+        sorted_categories = sorted(
+            categories.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+        for category, amount in sorted_categories:
+
+            percentage = (
+                amount /
+                total_category_spending *
+                100
+                if total_category_spending > 0
+                else 0
+            )
+
+            category_data.append([
+
+                str(category),
+
+                f"Rs. {amount:,.2f}",
+
+                f"{percentage:.1f}%"
+
+            ])
+
+        if len(category_data) == 1:
+
+            category_data.append([
+                "No spending recorded",
+                "Rs. 0.00",
+                "0%"
+            ])
+
+        category_table = Table(
+            category_data,
+            colWidths=[
+                250,
+                150,
+                100
+            ]
+        )
+
+        category_table.setStyle(
+            TableStyle([
+
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.HexColor("#111827")
+                ),
+
+                (
+                    "TEXTCOLOR",
+                    (0, 0),
+                    (-1, 0),
+                    colors.white
+                ),
+
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 0),
+                    "Helvetica-Bold"
+                ),
+
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.lightgrey
+                ),
+
+                (
+                    "ALIGN",
+                    (1, 1),
+                    (-1, -1),
+                    "RIGHT"
+                ),
+
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    7
+                ),
+
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    7
+                )
+
+            ])
+        )
+
+        story.append(
+            category_table
+        )
+
+        # Insights
+        story.append(
+            Paragraph(
+                "FinPilot Insights",
+                heading_style
+            )
+        )
+
+        for insight in insights:
+
+            story.append(
+                Paragraph(
+                    "• " + insight,
+                    normal_style
+                )
+            )
+
+            story.append(
+                Spacer(1, 5)
+            )
+
+        story.append(
+            Spacer(1, 10)
+        )
+
+        story.append(
+            Paragraph(
+                f"Total transactions recorded: {report['transaction_count']}",
+                normal_style
+            )
+        )
+
+        story.append(
+            Spacer(1, 15)
+        )
+
+        story.append(
+            Paragraph(
+                "Generated by FinPilot Personal Finance Decision Support Agent.",
+                subtitle_style
+            )
+        )
+
+        document.build(
+            story
+        )
+
+        buffer.seek(0)
+
+        return send_file(
+
+            buffer,
+
+            mimetype="application/pdf",
+
+            as_attachment=True,
+
+            download_name=
+                f"FinPilot_Report_{requested_month}.pdf"
+
+        )
+
+    except Exception as e:
+
+        print(
+            "PDF EXPORT ERROR:",
+            repr(e)
+        )
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
+
+@app.route("/api/health", methods=["GET"])
+def health():
+
+    return jsonify({
+
+        "status":
+            "ok",
+
+        "message":
+            "FinPilot backend is running.",
+
+        "timestamp":
+            datetime.now().isoformat()
+
+    })
+
+
+# ============================================================
+# ERROR HANDLERS
+# ============================================================
+
+@app.errorhandler(404)
+def not_found(error):
+
+    return jsonify({
+
+        "error":
+            "Route not found.",
+
+        "message":
+            "The requested page or API route does not exist."
+
+    }), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+
+    return jsonify({
+
+        "error":
+            "Internal server error."
+
+    }), 500
+
+
+# ============================================================
+# RUN
+# ============================================================
+
+if __name__ == "__main__":
+
+    app.run(
+
+        host="127.0.0.1",
+
+        port=5000,
+
+        debug=True
+
+    )

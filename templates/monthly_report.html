@@ -7,20 +7,182 @@
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0">
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>FinPilot - Monthly Report</title>
 
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/style.css') }}">
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+
+    <style>
+
+        /* ==========================================
+           PROFILE DROPDOWN
+        ========================================== */
+
+        .profile-wrapper {
+            position: relative;
+            margin-left: auto;
+        }
+
+        .profile-btn {
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 12px;
+            padding: 7px 11px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .profile-btn:hover {
+            background: #f8fafc;
+        }
+
+        .profile-avatar {
+            width: 36px;
+            height: 36px;
+            background: #111827;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .profile-info {
+            text-align: left;
+            line-height: 1.2;
+        }
+
+        .profile-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .profile-email {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 3px;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .profile-arrow {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .profile-menu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 10px);
+            width: 220px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.10);
+            padding: 8px;
+            display: none;
+            z-index: 2000;
+        }
+
+        .profile-menu.show {
+            display: block;
+        }
+
+        .profile-menu-header {
+            padding: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            margin-bottom: 5px;
+        }
+
+        .profile-menu-header strong {
+            display: block;
+            font-size: 14px;
+            color: #111827;
+        }
+
+        .profile-menu-header span {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #64748b;
+            word-break: break-word;
+        }
+
+        .profile-menu a {
+            display: block;
+            text-decoration: none;
+            color: #111827;
+            padding: 11px 12px;
+            border-radius: 9px;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+
+        .profile-menu a:hover {
+            background: #f3f4f6;
+        }
+
+        .profile-menu a.logout-link {
+            color: #dc2626;
+        }
+
+        .profile-menu a.logout-link:hover {
+            background: #fef2f2;
+        }
+
+
+        /* ==========================================
+           REPORT LOADING
+        ========================================== */
+
+        .report-loading {
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+
+        /* ==========================================
+           RESPONSIVE PROFILE
+        ========================================== */
+
+        @media (max-width: 700px) {
+
+            .profile-info {
+                display: none;
+            }
+
+            .profile-btn {
+                padding: 6px;
+            }
+
+        }
+
+    </style>
 
 </head>
 
 
 <body>
 
+
 <div class="app-layout">
+
 
     <!-- ================= SIDEBAR ================= -->
 
@@ -34,7 +196,9 @@
 
             <div>
 
-                <h2>FinPilot</h2>
+                <h2>
+                    FinPilot
+                </h2>
 
                 <span>
                     Personal Finance AI
@@ -49,7 +213,9 @@
 
             <a href="/dashboard">
 
-                <span>▦</span>
+                <span>
+                    ▦
+                </span>
 
                 Dashboard
 
@@ -58,7 +224,9 @@
 
             <a href="/transactions">
 
-                <span>↔</span>
+                <span>
+                    ↔
+                </span>
 
                 Transactions
 
@@ -67,7 +235,9 @@
 
             <a href="/budgets">
 
-                <span>◫</span>
+                <span>
+                    ◫
+                </span>
 
                 Budgets
 
@@ -76,7 +246,9 @@
 
             <a href="/goals">
 
-                <span>◎</span>
+                <span>
+                    ◎
+                </span>
 
                 Goals
 
@@ -85,9 +257,12 @@
 
             <a
                 href="/monthly-report"
-                class="active">
+                class="active"
+            >
 
-                <span>▤</span>
+                <span>
+                    ▤
+                </span>
 
                 Monthly Report
 
@@ -123,12 +298,13 @@
     </aside>
 
 
+
     <!-- ================= MAIN CONTENT ================= -->
 
     <main class="main-content">
 
 
-        <!-- HEADER -->
+        <!-- ================= HEADER ================= -->
 
         <header class="top-header">
 
@@ -145,15 +321,108 @@
             </div>
 
 
-            <div class="header-status">
+            <div
+                style="
+                    display:flex;
+                    align-items:center;
+                    gap:16px;
+                "
+            >
 
-                <span class="status-dot"></span>
+                <div class="header-status">
 
-                Report Center
+                    <span class="status-dot"></span>
+
+                    Report Center
+
+                </div>
+
+
+                <!-- ================= PROFILE ================= -->
+
+                <div class="profile-wrapper">
+
+                    <button
+                        class="profile-btn"
+                        type="button"
+                        onclick="toggleProfileMenu()"
+                    >
+
+                        <div
+                            class="profile-avatar"
+                            id="profileAvatar"
+                        >
+                            U
+                        </div>
+
+
+                        <div class="profile-info">
+
+                            <div
+                                class="profile-name"
+                                id="profileName"
+                            >
+                                {{ session.get('user_name', 'User') }}
+                            </div>
+
+
+                            <div
+                                class="profile-email"
+                                id="profileEmail"
+                            >
+                                {{ session.get('user_email', '') }}
+                            </div>
+
+                        </div>
+
+
+                        <div class="profile-arrow">
+                            ▼
+                        </div>
+
+                    </button>
+
+
+                    <!-- PROFILE MENU -->
+
+                    <div
+                        class="profile-menu"
+                        id="profileMenu"
+                    >
+
+                        <div class="profile-menu-header">
+
+                            <strong>
+                                {{ session.get('user_name', 'User') }}
+                            </strong>
+
+                            <span>
+                                {{ session.get('user_email', '') }}
+                            </span>
+
+                        </div>
+
+
+                        <a href="/profile">
+                            👤 Profile
+                        </a>
+
+
+                        <a
+                            href="/logout"
+                            class="logout-link"
+                        >
+                            🚪 Logout
+                        </a>
+
+                    </div>
+
+                </div>
 
             </div>
 
         </header>
+
 
 
         <!-- ================= REPORT CONTROLS ================= -->
@@ -178,7 +447,10 @@
 
                 <button
                     class="primary-btn"
-                    onclick="generateReport()">
+                    id="generateReportBtn"
+                    onclick="generateReport()"
+                    type="button"
+                >
 
                     Generate Report
 
@@ -187,7 +459,10 @@
 
                 <button
                     class="pdf-download-btn"
-                    onclick="downloadPDF()">
+                    id="pdfDownloadBtn"
+                    onclick="downloadPDF()"
+                    type="button"
+                >
 
                     ↓ Download PDF
 
@@ -198,12 +473,14 @@
         </section>
 
 
+
         <!-- ================= LOADING ================= -->
 
         <div
             id="reportLoading"
             class="report-loading"
-            style="display:none;">
+            style="display:none;"
+        >
 
             <div class="loading-spinner"></div>
 
@@ -212,6 +489,7 @@
             </p>
 
         </div>
+
 
 
         <!-- ================= SUMMARY ================= -->
@@ -246,6 +524,7 @@
             </div>
 
 
+
             <!-- Expenses -->
 
             <div class="report-card">
@@ -273,6 +552,7 @@
             </div>
 
 
+
             <!-- Savings -->
 
             <div class="report-card">
@@ -298,6 +578,7 @@
                 </p>
 
             </div>
+
 
 
             <!-- Savings Rate -->
@@ -329,6 +610,7 @@
         </section>
 
 
+
         <!-- ================= REPORT GRID ================= -->
 
         <section class="report-grid">
@@ -357,17 +639,17 @@
 
                 <div
                     id="reportCategories"
-                    class="report-category-list">
+                    class="report-category-list"
+                >
 
                     <div class="empty-report">
-
                         No category data available.
-
                     </div>
 
                 </div>
 
             </div>
+
 
 
             <!-- ================= INSIGHTS ================= -->
@@ -393,12 +675,11 @@
 
                 <div
                     id="reportInsights"
-                    class="report-insights">
+                    class="report-insights"
+                >
 
                     <div class="empty-report">
-
                         No insights available.
-
                     </div>
 
                 </div>
@@ -406,6 +687,7 @@
             </div>
 
         </section>
+
 
 
         <!-- ================= BUDGET PERFORMANCE ================= -->
@@ -429,7 +711,8 @@
 
                 <a
                     href="/budgets"
-                    class="secondary-btn">
+                    class="secondary-btn"
+                >
 
                     Manage Budgets
 
@@ -440,7 +723,8 @@
 
             <div
                 id="reportBudgets"
-                class="report-budget-list">
+                class="report-budget-list"
+            >
 
                 <div class="empty-report">
 
@@ -451,6 +735,7 @@
             </div>
 
         </section>
+
 
 
         <!-- ================= GOAL PROGRESS ================= -->
@@ -474,7 +759,8 @@
 
                 <a
                     href="/goals"
-                    class="secondary-btn">
+                    class="secondary-btn"
+                >
 
                     Manage Goals
 
@@ -485,7 +771,8 @@
 
             <div
                 id="reportGoals"
-                class="report-goal-list">
+                class="report-goal-list"
+            >
 
                 <div class="empty-report">
 
@@ -496,6 +783,7 @@
             </div>
 
         </section>
+
 
 
         <!-- ================= REPORT NOTE ================= -->
@@ -524,6 +812,7 @@
         </section>
 
 
+
         <!-- ================= FOOTER ================= -->
 
         <footer class="dashboard-footer">
@@ -544,550 +833,1053 @@
 </div>
 
 
+
 <!-- ================= JAVASCRIPT ================= -->
 
 <script>
 
-let currentReportMonth = "";
+    let currentReportMonth = "";
 
 
-/* ================= FORMAT MONEY ================= */
 
-function formatMoney(value) {
+    /* ==========================================
+       PROFILE DROPDOWN
+    ========================================== */
 
-    value = Number(value || 0);
+    function toggleProfileMenu() {
 
-    return "₹" + value.toLocaleString("en-IN", {
-        maximumFractionDigits: 0
-    });
+        const menu =
+            document.getElementById(
+                "profileMenu"
+            );
 
-}
-
-
-/* ================= GET CURRENT MONTH ================= */
-
-function getCurrentMonth() {
-
-    const now = new Date();
-
-    const year = now.getFullYear();
-
-    const month = String(
-        now.getMonth() + 1
-    ).padStart(2, "0");
-
-    return `${year}-${month}`;
-
-}
-
-
-/* ================= GENERATE REPORT ================= */
-
-async function generateReport() {
-
-    const monthInput =
-        document.getElementById("reportMonth");
-
-    const loading =
-        document.getElementById("reportLoading");
-
-
-    const month =
-        monthInput.value || getCurrentMonth();
-
-
-    currentReportMonth = month;
-
-
-    loading.style.display = "flex";
-
-
-    try {
-
-        const response = await fetch(
-            `/api/monthly-report?month=${encodeURIComponent(month)}`
+        menu.classList.toggle(
+            "show"
         );
 
+    }
 
-        const data = await response.json();
 
 
-        if (!response.ok) {
+    document.addEventListener(
+        "click",
+        function(event) {
 
-            throw new Error(
-                data.error || "Unable to generate report."
+            const wrapper =
+                document.querySelector(
+                    ".profile-wrapper"
+                );
+
+            const menu =
+                document.getElementById(
+                    "profileMenu"
+                );
+
+            if (
+                wrapper &&
+                !wrapper.contains(
+                    event.target
+                )
+            ) {
+
+                menu.classList.remove(
+                    "show"
+                );
+
+            }
+
+        }
+    );
+
+
+
+    /* ==========================================
+       PROFILE INITIALS
+    ========================================== */
+
+    function setProfileInitial() {
+
+        const name =
+            document
+                .getElementById(
+                    "profileName"
+                )
+                ?.innerText
+                ?.trim();
+
+
+        const avatar =
+            document.getElementById(
+                "profileAvatar"
+            );
+
+
+        if (!avatar) {
+            return;
+        }
+
+
+        if (!name) {
+
+            avatar.innerText =
+                "U";
+
+            return;
+
+        }
+
+
+        const words =
+            name.split(
+                /\s+/
+            );
+
+
+        let initials = "";
+
+
+        if (
+            words.length === 1
+        ) {
+
+            initials =
+                words[0]
+                    .substring(
+                        0,
+                        2
+                    )
+                    .toUpperCase();
+
+        } else {
+
+            initials =
+                (
+                    words[0][0] +
+                    words[
+                        words.length - 1
+                    ][0]
+                ).toUpperCase();
+
+        }
+
+
+        avatar.innerText =
+            initials || "U";
+
+    }
+
+
+
+    /* ==========================================
+       FORMAT MONEY
+    ========================================== */
+
+    function formatMoney(
+        value
+    ) {
+
+        value =
+            Number(
+                value || 0
+            );
+
+
+        return "₹" +
+            value.toLocaleString(
+                "en-IN",
+                {
+                    maximumFractionDigits: 0
+                }
+            );
+
+    }
+
+
+
+    /* ==========================================
+       CURRENT MONTH
+    ========================================== */
+
+    function getCurrentMonth() {
+
+        const now =
+            new Date();
+
+
+        const year =
+            now.getFullYear();
+
+
+        const month =
+            String(
+                now.getMonth() + 1
+            ).padStart(
+                2,
+                "0"
+            );
+
+
+        return `${year}-${month}`;
+
+    }
+
+
+
+    /* ==========================================
+       API HELPER
+    ========================================== */
+
+    async function apiFetch(
+        url,
+        options = {}
+    ) {
+
+        const finalOptions = {
+
+            ...options,
+
+            credentials:
+                "same-origin",
+
+            headers: {
+
+                ...(options.headers || {})
+
+            }
+
+        };
+
+
+        const response =
+            await fetch(
+                url,
+                finalOptions
+            );
+
+
+        let data = {};
+
+
+        try {
+
+            data =
+                await response.json();
+
+        }
+
+        catch {
+
+            data = {};
+
+        }
+
+
+        /* ==============================
+           LOGIN REDIRECT
+        ============================== */
+
+        if (
+            response.status === 401
+        ) {
+
+            window.location.href =
+                "/login";
+
+            return null;
+
+        }
+
+
+        return {
+            response,
+            data
+        };
+
+    }
+
+
+
+    /* ==========================================
+       GENERATE REPORT
+    ========================================== */
+
+    async function generateReport() {
+
+        const monthInput =
+            document.getElementById(
+                "reportMonth"
+            );
+
+
+        const loading =
+            document.getElementById(
+                "reportLoading"
+            );
+
+
+        const generateButton =
+            document.getElementById(
+                "generateReportBtn"
+            );
+
+
+        const month =
+            monthInput.value ||
+            getCurrentMonth();
+
+
+        currentReportMonth =
+            month;
+
+
+        loading.style.display =
+            "flex";
+
+
+        generateButton.disabled =
+            true;
+
+
+        generateButton.innerText =
+            "Generating...";
+
+
+        try {
+
+            const result =
+                await apiFetch(
+                    `/api/monthly-report?month=${encodeURIComponent(month)}`
+                );
+
+
+            if (!result) {
+                return;
+            }
+
+
+            const response =
+                result.response;
+
+
+            const data =
+                result.data;
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Unable to generate report."
+                );
+
+            }
+
+
+            /* ==============================
+               RENDER REPORT
+            ============================== */
+
+            renderSummary(
+                data
+            );
+
+
+            renderCategories(
+                data
+            );
+
+
+            renderInsights(
+                data
+            );
+
+
+            renderBudgets(
+                data
+            );
+
+
+            renderGoals(
+                data
             );
 
         }
 
 
-        renderSummary(data);
+        catch (error) {
 
-        renderCategories(data);
-
-        renderInsights(data);
-
-        renderBudgets(data);
-
-        renderGoals(data);
+            console.error(
+                error
+            );
 
 
-    } catch (error) {
+            alert(
+                error.message ||
+                "Something went wrong while generating the report."
+            );
 
-        console.error(error);
-
-        alert(
-            error.message ||
-            "Something went wrong while generating the report."
-        );
-
-    } finally {
-
-        loading.style.display = "none";
-
-    }
-
-}
+        }
 
 
-/* ================= SUMMARY ================= */
+        finally {
 
-function renderSummary(data) {
-
-    document.getElementById("reportIncome").textContent =
-        formatMoney(data.income);
+            loading.style.display =
+                "none";
 
 
-    document.getElementById("reportExpenses").textContent =
-        formatMoney(data.expenses);
+            generateButton.disabled =
+                false;
 
 
-    document.getElementById("reportSavings").textContent =
-        formatMoney(data.savings);
+            generateButton.innerText =
+                "Generate Report";
 
-
-    document.getElementById("reportSavingsRate").textContent =
-        `${Number(data.savings_rate || 0).toFixed(1)}%`;
-
-}
-
-
-/* ================= CATEGORIES ================= */
-
-function renderCategories(data) {
-
-    const container =
-        document.getElementById("reportCategories");
-
-
-    const categories =
-        data.category_spending || {};
-
-
-    const entries =
-        Object.entries(categories)
-        .sort((a, b) => b[1] - a[1]);
-
-
-    if (!entries.length) {
-
-        container.innerHTML = `
-            <div class="empty-report">
-                No spending recorded for this month.
-            </div>
-        `;
-
-        return;
+        }
 
     }
 
 
-    const total =
-        entries.reduce(
-            (sum, item) => sum + Number(item[1] || 0),
-            0
-        );
+
+    /* ==========================================
+       SUMMARY
+    ========================================== */
+
+    function renderSummary(
+        data
+    ) {
+
+        document.getElementById(
+            "reportIncome"
+        ).textContent =
+            formatMoney(
+                data.income
+            );
 
 
-    container.innerHTML =
-        entries.map(([category, amount]) => {
-
-            const percentage =
-                total > 0
-                ? (Number(amount) / total) * 100
-                : 0;
-
-
-            return `
-
-                <div class="report-category-row">
-
-                    <div class="report-category-info">
-
-                        <strong>
-                            ${escapeHtml(category)}
-                        </strong>
-
-                        <span>
-                            ${percentage.toFixed(1)}%
-                        </span>
-
-                    </div>
+        document.getElementById(
+            "reportExpenses"
+        ).textContent =
+            formatMoney(
+                data.expenses
+            );
 
 
-                    <div class="report-category-bar">
-
-                        <div
-                            class="report-category-fill"
-                            style="width:${percentage}%">
-                        </div>
-
-                    </div>
+        document.getElementById(
+            "reportSavings"
+        ).textContent =
+            formatMoney(
+                data.savings
+            );
 
 
-                    <div class="report-category-amount">
+        document.getElementById(
+            "reportSavingsRate"
+        ).textContent =
+            `${
+                Number(
+                    data.savings_rate || 0
+                ).toFixed(1)
+            }%`;
 
-                        ${formatMoney(amount)}
+    }
 
-                    </div>
+
+
+    /* ==========================================
+       CATEGORIES
+    ========================================== */
+
+    function renderCategories(
+        data
+    ) {
+
+        const container =
+            document.getElementById(
+                "reportCategories"
+            );
+
+
+        const categories =
+            data.category_spending ||
+            {};
+
+
+        const entries =
+            Object.entries(
+                categories
+            )
+            .sort(
+                (a, b) =>
+                    Number(b[1] || 0) -
+                    Number(a[1] || 0)
+            );
+
+
+        if (
+            !entries.length
+        ) {
+
+            container.innerHTML = `
+
+                <div class="empty-report">
+
+                    No spending recorded for this month.
 
                 </div>
 
             `;
 
-        }).join("");
+            return;
 
-}
-
-
-/* ================= INSIGHTS ================= */
-
-function renderInsights(data) {
-
-    const container =
-        document.getElementById("reportInsights");
+        }
 
 
-    const insights =
-        data.insights || [];
+        const total =
+            entries.reduce(
+                (sum, item) =>
+                    sum +
+                    Number(
+                        item[1] || 0
+                    ),
+                0
+            );
 
 
-    if (!insights.length) {
+        container.innerHTML =
+            entries
+                .map(
+                    ([category, amount]) => {
 
-        container.innerHTML = `
-            <div class="empty-report">
-                No major insights detected for this month.
-            </div>
-        `;
+                        const percentage =
+                            total > 0
 
-        return;
+                            ? (
+                                Number(amount) /
+                                total
+                            ) * 100
 
-    }
-
-
-    container.innerHTML =
-        insights.map((insight, index) => {
-
-            return `
-
-                <div class="report-insight">
-
-                    <div class="insight-number">
-                        ${index + 1}
-                    </div>
-
-                    <div>
-                        ${escapeHtml(String(insight))}
-                    </div>
-
-                </div>
-
-            `;
-
-        }).join("");
-
-}
+                            : 0;
 
 
-/* ================= BUDGETS ================= */
+                        return `
 
-function renderBudgets(data) {
+                            <div class="report-category-row">
 
-    const container =
-        document.getElementById("reportBudgets");
+                                <div class="report-category-info">
 
+                                    <strong>
+                                        ${escapeHtml(
+                                            category
+                                        )}
+                                    </strong>
 
-    const budgets =
-        data.budgets || [];
+                                    <span>
+                                        ${percentage.toFixed(1)}%
+                                    </span>
 
-
-    if (!budgets.length) {
-
-        container.innerHTML = `
-            <div class="empty-report">
-                No budgets have been created yet.
-            </div>
-        `;
-
-        return;
-
-    }
+                                </div>
 
 
-    container.innerHTML =
-        budgets.map(budget => {
+                                <div class="report-category-bar">
 
-            const category =
-                budget.category || "Other";
+                                    <div
+                                        class="report-category-fill"
+                                        style="width:${percentage}%"
+                                    ></div>
 
-
-            const budgetAmount =
-                Number(
-                    budget.amount ||
-                    budget.budget ||
-                    0
-                );
+                                </div>
 
 
-            const actual =
-                Number(
-                    budget.actual ||
-                    budget.spent ||
-                    0
-                );
+                                <div class="report-category-amount">
 
+                                    ${formatMoney(
+                                        amount
+                                    )}
 
-            const percentage =
-                budgetAmount > 0
-                ? Math.min(
-                    (actual / budgetAmount) * 100,
-                    100
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    }
                 )
-                : 0;
-
-
-            let status =
-                "Within Budget";
-
-
-            if (actual > budgetAmount) {
-
-                status = "Over Budget";
-
-            } else if (
-                budgetAmount > 0 &&
-                actual >= budgetAmount * 0.8
-            ) {
-
-                status = "Near Limit";
-
-            }
-
-
-            return `
-
-                <div class="report-budget-row">
-
-                    <div class="budget-main">
-
-                        <strong>
-                            ${escapeHtml(category)}
-                        </strong>
-
-                        <span>
-                            ${formatMoney(actual)}
-                            /
-                            ${formatMoney(budgetAmount)}
-                        </span>
-
-                    </div>
-
-
-                    <div class="budget-progress">
-
-                        <div
-                            class="budget-progress-fill"
-                            style="width:${percentage}%">
-                        </div>
-
-                    </div>
-
-
-                    <div class="budget-status">
-
-                        ${status}
-
-                    </div>
-
-                </div>
-
-            `;
-
-        }).join("");
-
-}
-
-
-/* ================= GOALS ================= */
-
-function renderGoals(data) {
-
-    const container =
-        document.getElementById("reportGoals");
-
-
-    const goals =
-        data.goals || [];
-
-
-    if (!goals.length) {
-
-        container.innerHTML = `
-            <div class="empty-report">
-                No financial goals have been created yet.
-            </div>
-        `;
-
-        return;
+                .join("");
 
     }
 
 
-    container.innerHTML =
-        goals.map(goal => {
 
-            const name =
-                goal.name || "Financial Goal";
+    /* ==========================================
+       INSIGHTS
+    ========================================== */
 
+    function renderInsights(
+        data
+    ) {
 
-            const target =
-                Number(
-                    goal.target_amount || 0
-                );
-
-
-            const current =
-                Number(
-                    goal.current_amount || 0
-                );
+        const container =
+            document.getElementById(
+                "reportInsights"
+            );
 
 
-            const percentage =
-                target > 0
-                ? Math.min(
-                    (current / target) * 100,
-                    100
-                )
-                : 0;
+        const insights =
+            data.insights ||
+            [];
 
 
-            return `
+        if (
+            !insights.length
+        ) {
 
-                <div class="report-goal-row">
+            container.innerHTML = `
 
-                    <div class="goal-main">
+                <div class="empty-report">
 
-                        <strong>
-                            ${escapeHtml(name)}
-                        </strong>
-
-                        <span>
-                            ${formatMoney(current)}
-                            /
-                            ${formatMoney(target)}
-                        </span>
-
-                    </div>
-
-
-                    <div class="goal-progress">
-
-                        <div
-                            class="goal-progress-fill"
-                            style="width:${percentage}%">
-                        </div>
-
-                    </div>
-
-
-                    <div class="goal-percentage">
-
-                        ${percentage.toFixed(0)}%
-
-                    </div>
+                    No major insights detected for this month.
 
                 </div>
 
             `;
 
-        }).join("");
+            return;
 
-}
-
-
-/* ================= PDF ================= */
-
-function downloadPDF() {
-
-    const month =
-        document.getElementById("reportMonth").value
-        || currentReportMonth
-        || getCurrentMonth();
+        }
 
 
-    window.location.href =
-        `/api/monthly-report/pdf?month=${encodeURIComponent(month)}`;
+        container.innerHTML =
+            insights
+                .map(
+                    (insight, index) => {
 
-}
+                        return `
 
+                            <div class="report-insight">
 
-/* ================= HTML ESCAPE ================= */
+                                <div class="insight-number">
+                                    ${index + 1}
+                                </div>
 
-function escapeHtml(value) {
+                                <div>
+                                    ${escapeHtml(
+                                        String(
+                                            insight
+                                        )
+                                    )}
+                                </div>
 
-    return String(value)
+                            </div>
 
-        .replace(/&/g, "&amp;")
+                        `;
 
-        .replace(/</g, "&lt;")
+                    }
+                )
+                .join("");
 
-        .replace(/>/g, "&gt;")
-
-        .replace(/"/g, "&quot;")
-
-        .replace(/'/g, "&#039;");
-
-}
-
-
-/* ================= PAGE LOAD ================= */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function() {
-
-        const monthInput =
-            document.getElementById("reportMonth");
+    }
 
 
-        const currentMonth =
+
+    /* ==========================================
+       BUDGETS
+    ========================================== */
+
+    function renderBudgets(
+        data
+    ) {
+
+        const container =
+            document.getElementById(
+                "reportBudgets"
+            );
+
+
+        const budgets =
+            data.budgets ||
+            [];
+
+
+        if (
+            !budgets.length
+        ) {
+
+            container.innerHTML = `
+
+                <div class="empty-report">
+
+                    No budgets have been created yet.
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            budgets
+                .map(
+                    budget => {
+
+                        const category =
+                            budget.category ||
+                            "Other";
+
+
+                        const budgetAmount =
+                            Number(
+                                budget.amount ??
+                                budget.budget ??
+                                0
+                            );
+
+
+                        const actual =
+                            Number(
+                                budget.actual ??
+                                budget.spent ??
+                                0
+                            );
+
+
+                        const percentage =
+                            budgetAmount > 0
+
+                            ? Math.min(
+                                (
+                                    actual /
+                                    budgetAmount
+                                ) * 100,
+                                100
+                            )
+
+                            : 0;
+
+
+                        let status =
+                            "Within Budget";
+
+
+                        if (
+                            actual >
+                            budgetAmount
+                        ) {
+
+                            status =
+                                "Over Budget";
+
+                        }
+
+                        else if (
+                            budgetAmount > 0 &&
+                            actual >=
+                            budgetAmount * 0.8
+                        ) {
+
+                            status =
+                                "Near Limit";
+
+                        }
+
+
+                        return `
+
+                            <div class="report-budget-row">
+
+                                <div class="budget-main">
+
+                                    <strong>
+                                        ${escapeHtml(
+                                            category
+                                        )}
+                                    </strong>
+
+                                    <span>
+
+                                        ${formatMoney(
+                                            actual
+                                        )}
+
+                                        /
+
+                                        ${formatMoney(
+                                            budgetAmount
+                                        )}
+
+                                    </span>
+
+                                </div>
+
+
+                                <div class="budget-progress">
+
+                                    <div
+                                        class="budget-progress-fill"
+                                        style="width:${percentage}%"
+                                    ></div>
+
+                                </div>
+
+
+                                <div class="budget-status">
+
+                                    ${status}
+
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    }
+                )
+                .join("");
+
+    }
+
+
+
+    /* ==========================================
+       GOALS
+    ========================================== */
+
+    function renderGoals(
+        data
+    ) {
+
+        const container =
+            document.getElementById(
+                "reportGoals"
+            );
+
+
+        const goals =
+            data.goals ||
+            [];
+
+
+        if (
+            !goals.length
+        ) {
+
+            container.innerHTML = `
+
+                <div class="empty-report">
+
+                    No financial goals have been created yet.
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        container.innerHTML =
+            goals
+                .map(
+                    goal => {
+
+                        const name =
+                            goal.name ||
+                            "Financial Goal";
+
+
+                        const target =
+                            Number(
+                                goal.target_amount ||
+                                0
+                            );
+
+
+                        const current =
+                            Number(
+                                goal.current_amount ||
+                                0
+                            );
+
+
+                        const percentage =
+                            target > 0
+
+                            ? Math.min(
+                                (
+                                    current /
+                                    target
+                                ) * 100,
+                                100
+                            )
+
+                            : 0;
+
+
+                        return `
+
+                            <div class="report-goal-row">
+
+                                <div class="goal-main">
+
+                                    <strong>
+                                        ${escapeHtml(
+                                            name
+                                        )}
+                                    </strong>
+
+                                    <span>
+
+                                        ${formatMoney(
+                                            current
+                                        )}
+
+                                        /
+
+                                        ${formatMoney(
+                                            target
+                                        )}
+
+                                    </span>
+
+                                </div>
+
+
+                                <div class="goal-progress">
+
+                                    <div
+                                        class="goal-progress-fill"
+                                        style="width:${percentage}%"
+                                    ></div>
+
+                                </div>
+
+
+                                <div class="goal-percentage">
+
+                                    ${percentage.toFixed(0)}%
+
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    }
+                )
+                .join("");
+
+    }
+
+
+
+    /* ==========================================
+       DOWNLOAD PDF
+    ========================================== */
+
+    function downloadPDF() {
+
+        const month =
+            document.getElementById(
+                "reportMonth"
+            ).value
+
+            ||
+
+            currentReportMonth
+
+            ||
+
             getCurrentMonth();
 
 
-        monthInput.value =
-            currentMonth;
-
-
-        currentReportMonth =
-            currentMonth;
-
-
-        generateReport();
+        window.location.href =
+            `/api/monthly-report/pdf?month=${encodeURIComponent(month)}`;
 
     }
-);
+
+
+
+    /* ==========================================
+       HTML ESCAPE
+    ========================================== */
+
+    function escapeHtml(
+        value
+    ) {
+
+        return String(
+            value ?? ""
+        )
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+    }
+
+
+
+    /* ==========================================
+       PAGE LOAD
+    ========================================== */
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function() {
+
+            const monthInput =
+                document.getElementById(
+                    "reportMonth"
+                );
+
+
+            const currentMonth =
+                getCurrentMonth();
+
+
+            monthInput.value =
+                currentMonth;
+
+
+            currentReportMonth =
+                currentMonth;
+
+
+            setProfileInitial();
+
+
+            generateReport();
+
+        }
+    );
 
 </script>
 
+
 </body>
+
 </html>

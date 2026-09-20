@@ -30,25 +30,243 @@
             color: #111827;
         }
 
+
+        /* =================================
+           TOP BAR
+        ================================= */
+
+        .top-bar {
+            height: 72px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 0 30px;
+
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+
+        /* =================================
+           BRAND
+        ================================= */
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+
+            background: #111827;
+            color: white;
+
+            border-radius: 10px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-weight: 700;
+            font-size: 17px;
+        }
+
+        .brand-name {
+            font-size: 21px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+
+        /* =================================
+           PROFILE
+        ================================= */
+
+        .profile-wrapper {
+            position: relative;
+        }
+
+        .profile-btn {
+            border: 1px solid #e5e7eb;
+            background: white;
+
+            border-radius: 12px;
+
+            padding: 8px 12px;
+
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            cursor: pointer;
+
+            transition: 0.2s;
+        }
+
+        .profile-btn:hover {
+            background: #f8fafc;
+        }
+
+        .profile-avatar {
+            width: 36px;
+            height: 36px;
+
+            background: #111827;
+            color: white;
+
+            border-radius: 50%;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .profile-info {
+            text-align: left;
+            line-height: 1.2;
+        }
+
+        .profile-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .profile-email {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 3px;
+        }
+
+        .profile-arrow {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+
+        /* =================================
+           PROFILE MENU
+        ================================= */
+
+        .profile-menu {
+            position: absolute;
+
+            top: calc(100% + 10px);
+            right: 0;
+
+            width: 220px;
+
+            background: white;
+
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+
+            box-shadow:
+                0 10px 30px rgba(0,0,0,0.10);
+
+            padding: 8px;
+
+            display: none;
+        }
+
+        .profile-menu.show {
+            display: block;
+        }
+
+        .profile-menu-header {
+            padding: 12px;
+
+            border-bottom: 1px solid #f1f5f9;
+
+            margin-bottom: 5px;
+        }
+
+        .profile-menu-header strong {
+            display: block;
+
+            font-size: 14px;
+            color: #111827;
+        }
+
+        .profile-menu-header span {
+            display: block;
+
+            margin-top: 4px;
+
+            font-size: 12px;
+
+            color: #64748b;
+
+            word-break: break-word;
+        }
+
+        .profile-menu a {
+            display: block;
+
+            text-decoration: none;
+
+            color: #111827;
+
+            padding: 11px 12px;
+
+            border-radius: 9px;
+
+            font-size: 14px;
+
+            transition: 0.2s;
+        }
+
+        .profile-menu a:hover {
+            background: #f3f4f6;
+        }
+
+        .profile-menu a.logout-link {
+            color: #dc2626;
+        }
+
+        .profile-menu a.logout-link:hover {
+            background: #fef2f2;
+        }
+
+
+        /* =================================
+           MAIN PAGE
+        ================================= */
+
         .goals-page {
             max-width: 1200px;
             margin: auto;
             padding: 35px;
         }
 
+
         .goals-header {
             margin-bottom: 28px;
         }
+
 
         .goals-header h1 {
             margin: 0 0 8px;
             font-size: 32px;
         }
 
+
         .goals-header p {
             margin: 0;
             color: #64748b;
         }
+
 
         /* =================================
            FORM
@@ -56,58 +274,94 @@
 
         .goal-form {
             background: white;
+
             padding: 25px;
+
             border-radius: 18px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+
+            box-shadow:
+                0 8px 30px rgba(0,0,0,0.06);
+
             margin-bottom: 30px;
         }
+
 
         .goal-form h2 {
             margin-top: 0;
             margin-bottom: 20px;
         }
 
+
         .form-grid {
             display: grid;
+
             grid-template-columns:
                 repeat(2, 1fr);
+
             gap: 18px;
         }
 
+
         .form-group label {
             display: block;
+
             margin-bottom: 7px;
+
             font-size: 13px;
+
             font-weight: 600;
         }
 
+
         .form-group input {
             width: 100%;
+
             padding: 12px 14px;
+
             border: 1px solid #d1d5db;
+
             border-radius: 10px;
+
             font-size: 14px;
+
             outline: none;
         }
+
 
         .form-group input:focus {
             border-color: #111827;
         }
 
+
         .create-goal-btn {
             margin-top: 20px;
+
             padding: 13px 22px;
+
             border: none;
+
             border-radius: 10px;
+
             background: #111827;
+
             color: white;
+
             font-weight: 600;
+
             cursor: pointer;
         }
+
 
         .create-goal-btn:hover {
             opacity: 0.9;
         }
+
+
+        .create-goal-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
 
         /* =================================
            GOAL GRID
@@ -115,10 +369,13 @@
 
         .goals-grid {
             display: grid;
+
             grid-template-columns:
                 repeat(auto-fit, minmax(300px, 1fr));
+
             gap: 22px;
         }
+
 
         /* =================================
            GOAL CARD
@@ -126,34 +383,60 @@
 
         .goal-card {
             background: white;
+
             border-radius: 20px;
+
             padding: 24px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+
+            box-shadow:
+                0 8px 30px rgba(0,0,0,0.06);
         }
+
 
         .goal-card-header {
             display: flex;
+
             justify-content: space-between;
+
             align-items: flex-start;
+
             gap: 15px;
         }
 
+
         .goal-title {
             margin: 0;
+
             font-size: 20px;
         }
 
+
         .goal-icon {
             font-size: 30px;
+
+            margin-bottom: 3px;
         }
+
 
         .delete-goal {
             border: none;
+
             background: #fee2e2;
+
+            color: #991b1b;
+
             padding: 8px 10px;
+
             border-radius: 8px;
+
             cursor: pointer;
         }
+
+
+        .delete-goal:hover {
+            background: #fecaca;
+        }
+
 
         /* =================================
            AMOUNTS
@@ -161,20 +444,28 @@
 
         .goal-amounts {
             display: flex;
+
             justify-content: space-between;
+
             margin: 25px 0 12px;
         }
 
+
         .amount-box small {
             display: block;
+
             color: #64748b;
+
             margin-bottom: 5px;
+
             font-size: 12px;
         }
+
 
         .amount-box strong {
             font-size: 19px;
         }
+
 
         /* =================================
            PROGRESS
@@ -184,28 +475,44 @@
             margin-top: 12px;
         }
 
+
         .progress-background {
             width: 100%;
+
             height: 12px;
+
             background: #e5e7eb;
+
             border-radius: 20px;
+
             overflow: hidden;
         }
 
+
         .progress-fill {
             height: 100%;
+
             border-radius: 20px;
+
             background: #22c55e;
-            transition: width 0.5s ease;
+
+            transition:
+                width 0.5s ease;
         }
+
 
         .progress-text {
             display: flex;
+
             justify-content: space-between;
+
             margin-top: 8px;
+
             font-size: 13px;
+
             font-weight: 600;
         }
+
 
         /* =================================
            REMAINING
@@ -213,15 +520,21 @@
 
         .remaining {
             margin-top: 20px;
+
             padding: 13px;
+
             background: #f8fafc;
+
             border-radius: 10px;
+
             font-size: 14px;
         }
+
 
         .remaining strong {
             color: #111827;
         }
+
 
         /* =================================
            DEADLINE
@@ -229,9 +542,12 @@
 
         .deadline {
             margin-top: 15px;
+
             color: #64748b;
+
             font-size: 13px;
         }
+
 
         /* =================================
            EMPTY
@@ -239,16 +555,41 @@
 
         .empty-state {
             background: white;
+
             padding: 60px 30px;
+
             border-radius: 20px;
+
             text-align: center;
+
             color: #64748b;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+
+            box-shadow:
+                0 8px 30px rgba(0,0,0,0.05);
         }
+
 
         .empty-state .emoji {
             font-size: 50px;
         }
+
+
+        /* =================================
+           LOADING
+        ================================= */
+
+        .loading-state {
+            background: white;
+
+            padding: 50px;
+
+            border-radius: 20px;
+
+            text-align: center;
+
+            color: #64748b;
+        }
+
 
         /* =================================
            ERROR
@@ -256,18 +597,36 @@
 
         .error-message {
             display: none;
+
             margin-top: 15px;
+
             padding: 12px;
+
             background: #fee2e2;
+
             color: #991b1b;
+
             border-radius: 10px;
         }
+
 
         /* =================================
            RESPONSIVE
         ================================= */
 
         @media (max-width: 700px) {
+
+            .top-bar {
+                padding: 0 15px;
+            }
+
+            .profile-info {
+                display: none;
+            }
+
+            .profile-btn {
+                padding: 6px;
+            }
 
             .goals-page {
                 padding: 18px;
@@ -286,746 +645,1246 @@
 
 <body>
 
-<div class="goals-page">
 
     <!-- =================================
-         HEADER
+         TOP BAR
     ================================= -->
 
-    <div class="goals-header">
-
-        <h1>
-            🎯 Financial Goals
-        </h1>
-
-        <p>
-            Set goals, track your savings, and see your progress.
-        </p>
-
-    </div>
+    <div class="top-bar">
 
 
-    <!-- =================================
-         CREATE GOAL
-    ================================= -->
+        <!-- BRAND -->
 
-    <div class="goal-form">
+        <div class="brand">
 
-        <h2>
-            Create a Financial Goal
-        </h2>
-
-        <div class="form-grid">
-
-            <div class="form-group">
-
-                <label>
-                    Goal Name
-                </label>
-
-                <input
-                    type="text"
-                    id="goalName"
-                    placeholder="Example: New Laptop"
-                >
-
+            <div class="brand-logo">
+                FP
             </div>
 
-
-            <div class="form-group">
-
-                <label>
-                    Target Amount
-                </label>
-
-                <input
-                    type="number"
-                    id="targetAmount"
-                    placeholder="80000"
-                    min="1"
-                    step="0.01"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label>
-                    Already Saved
-                </label>
-
-                <input
-                    type="number"
-                    id="currentAmount"
-                    placeholder="35000"
-                    min="0"
-                    step="0.01"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label>
-                    Target Date
-                </label>
-
-                <input
-                    type="date"
-                    id="goalDeadline"
-                >
-
+            <div class="brand-name">
+                FinPilot
             </div>
 
         </div>
 
 
-        <button
-            class="create-goal-btn"
-            onclick="createGoal()"
-        >
-            🎯 Create Goal
-        </button>
+        <!-- PROFILE -->
 
+        <div class="profile-wrapper">
+
+
+            <button
+                class="profile-btn"
+                id="profileBtn"
+                type="button"
+                onclick="toggleProfileMenu()"
+            >
+
+                <div
+                    class="profile-avatar"
+                    id="profileAvatar"
+                >
+                    U
+                </div>
+
+
+                <div class="profile-info">
+
+                    <div
+                        class="profile-name"
+                        id="profileName"
+                    >
+                        {{ session.get('user_name', 'User') }}
+                    </div>
+
+
+                    <div
+                        class="profile-email"
+                        id="profileEmail"
+                    >
+                        {{ session.get('user_email', '') }}
+                    </div>
+
+                </div>
+
+
+                <div class="profile-arrow">
+                    ▼
+                </div>
+
+            </button>
+
+
+            <!-- DROPDOWN -->
+
+            <div
+                class="profile-menu"
+                id="profileMenu"
+            >
+
+                <div class="profile-menu-header">
+
+                    <strong>
+                        {{ session.get('user_name', 'User') }}
+                    </strong>
+
+                    <span>
+                        {{ session.get('user_email', '') }}
+                    </span>
+
+                </div>
+
+
+                <a href="/profile">
+                    👤 Profile
+                </a>
+
+
+                <a
+                    href="/logout"
+                    class="logout-link"
+                >
+                    🚪 Logout
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =================================
+         MAIN PAGE
+    ================================= -->
+
+    <div class="goals-page">
+
+
+        <!-- =================================
+             HEADER
+        ================================= -->
+
+        <div class="goals-header">
+
+            <h1>
+                🎯 Financial Goals
+            </h1>
+
+
+            <p>
+                Set goals, track your savings, and see your progress.
+            </p>
+
+        </div>
+
+
+
+        <!-- =================================
+             CREATE GOAL
+        ================================= -->
+
+        <div class="goal-form">
+
+
+            <h2>
+                Create a Financial Goal
+            </h2>
+
+
+            <div class="form-grid">
+
+
+                <!-- GOAL NAME -->
+
+                <div class="form-group">
+
+                    <label>
+                        Goal Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="goalName"
+                        placeholder="Example: New Laptop"
+                    >
+
+                </div>
+
+
+                <!-- TARGET -->
+
+                <div class="form-group">
+
+                    <label>
+                        Target Amount
+                    </label>
+
+                    <input
+                        type="number"
+                        id="targetAmount"
+                        placeholder="80000"
+                        min="1"
+                        step="0.01"
+                    >
+
+                </div>
+
+
+                <!-- CURRENT -->
+
+                <div class="form-group">
+
+                    <label>
+                        Already Saved
+                    </label>
+
+                    <input
+                        type="number"
+                        id="currentAmount"
+                        placeholder="35000"
+                        min="0"
+                        step="0.01"
+                    >
+
+                </div>
+
+
+                <!-- DATE -->
+
+                <div class="form-group">
+
+                    <label>
+                        Target Date
+                    </label>
+
+                    <input
+                        type="date"
+                        id="goalDeadline"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- BUTTON -->
+
+            <button
+                class="create-goal-btn"
+                id="createGoalButton"
+                onclick="createGoal()"
+                type="button"
+            >
+                🎯 Create Goal
+            </button>
+
+
+            <!-- ERROR -->
+
+            <div
+                id="errorMessage"
+                class="error-message"
+            ></div>
+
+        </div>
+
+
+
+        <!-- =================================
+             LOADING
+        ================================= -->
 
         <div
-            id="errorMessage"
-            class="error-message"
-        ></div>
-
-    </div>
-
-
-    <!-- =================================
-         GOALS
-    ================================= -->
-
-    <div
-        id="goalsGrid"
-        class="goals-grid"
-    ></div>
-
-
-    <!-- =================================
-         EMPTY STATE
-    ================================= -->
-
-    <div
-        id="emptyState"
-        class="empty-state"
-        style="display:none;"
-    >
-
-        <div class="emoji">
-            🎯
+            id="loadingState"
+            class="loading-state"
+        >
+            Loading your goals...
         </div>
 
-        <h2>
-            No financial goals yet
-        </h2>
 
-        <p>
-            Create your first goal and start tracking your progress.
-        </p>
+
+        <!-- =================================
+             GOALS
+        ================================= -->
+
+        <div
+            id="goalsGrid"
+            class="goals-grid"
+            style="display:none;"
+        ></div>
+
+
+
+        <!-- =================================
+             EMPTY STATE
+        ================================= -->
+
+        <div
+            id="emptyState"
+            class="empty-state"
+            style="display:none;"
+        >
+
+
+            <div class="emoji">
+                🎯
+            </div>
+
+
+            <h2>
+                No financial goals yet
+            </h2>
+
+
+            <p>
+                Create your first goal and start tracking your progress.
+            </p>
+
+        </div>
 
     </div>
 
-</div>
 
 
 <script>
 
-let goals = [];
+
+    let goals = [];
 
 
-// ==========================================
-// FORMAT MONEY
-// ==========================================
 
-function formatMoney(
-    amount
-) {
+    /* ==========================================
+       PROFILE DROPDOWN
+    ========================================== */
 
-    return "₹" +
-        Number(
-            amount || 0
-        ).toLocaleString(
-            "en-IN",
-            {
-                maximumFractionDigits: 2
+    function toggleProfileMenu() {
+
+        const menu =
+            document.getElementById(
+                "profileMenu"
+            );
+
+        menu.classList.toggle(
+            "show"
+        );
+
+    }
+
+
+
+    document.addEventListener(
+        "click",
+        function(event) {
+
+            const wrapper =
+                document.querySelector(
+                    ".profile-wrapper"
+                );
+
+            const menu =
+                document.getElementById(
+                    "profileMenu"
+                );
+
+
+            if (
+                wrapper &&
+                !wrapper.contains(
+                    event.target
+                )
+            ) {
+
+                menu.classList.remove(
+                    "show"
+                );
+
             }
-        );
-
-}
-
-
-// ==========================================
-// ESCAPE HTML
-// ==========================================
-
-function escapeHtml(
-    text
-) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-    div.textContent =
-        text;
-
-    return div.innerHTML;
-
-}
-
-
-// ==========================================
-// SHOW ERROR
-// ==========================================
-
-function showError(
-    message
-) {
-
-    const box =
-        document.getElementById(
-            "errorMessage"
-        );
-
-    box.innerText =
-        "❌ " + message;
-
-    box.style.display =
-        "block";
-
-}
-
-
-// ==========================================
-// LOAD GOALS
-// ==========================================
-
-async function loadGoals() {
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/goals"
-            );
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not load goals."
-            );
-
-        }
-
-
-        goals =
-            data.goals || [];
-
-
-        renderGoals();
-
-    }
-
-    catch (error) {
-
-        console.error(
-            error
-        );
-
-        showError(
-            error.message
-        );
-
-    }
-
-}
-
-
-// ==========================================
-// RENDER GOALS
-// ==========================================
-
-function renderGoals() {
-
-    const grid =
-        document.getElementById(
-            "goalsGrid"
-        );
-
-    const empty =
-        document.getElementById(
-            "emptyState"
-        );
-
-
-    grid.innerHTML =
-        "";
-
-
-    if (
-        goals.length === 0
-    ) {
-
-        empty.style.display =
-            "block";
-
-        return;
-
-    }
-
-
-    empty.style.display =
-        "none";
-
-
-    goals.forEach(
-        goal => {
-
-            const target =
-                Number(
-                    goal.target_amount || 0
-                );
-
-            const current =
-                Number(
-                    goal.current_amount || 0
-                );
-
-
-            const remaining =
-                Math.max(
-                    target -
-                    current,
-                    0
-                );
-
-
-            let percentage =
-                target > 0
-                ? (
-                    current /
-                    target
-                ) * 100
-                : 0;
-
-
-            percentage =
-                Math.min(
-                    Math.max(
-                        percentage,
-                        0
-                    ),
-                    100
-                );
-
-
-            const card =
-                document.createElement(
-                    "div"
-                );
-
-
-            card.className =
-                "goal-card";
-
-
-            card.innerHTML = `
-
-                <div class="goal-card-header">
-
-                    <div>
-
-                        <div class="goal-icon">
-                            🎯
-                        </div>
-
-                        <h3 class="goal-title">
-                            ${escapeHtml(
-                                goal.name
-                            )}
-                        </h3>
-
-                    </div>
-
-
-                    <button
-                        class="delete-goal"
-                        onclick="deleteGoal(
-                            ${goal.id}
-                        )"
-                    >
-                        🗑️
-                    </button>
-
-                </div>
-
-
-                <div class="goal-amounts">
-
-                    <div class="amount-box">
-
-                        <small>
-                            Saved
-                        </small>
-
-                        <strong>
-                            ${formatMoney(
-                                current
-                            )}
-                        </strong>
-
-                    </div>
-
-
-                    <div class="amount-box">
-
-                        <small>
-                            Target
-                        </small>
-
-                        <strong>
-                            ${formatMoney(
-                                target
-                            )}
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
-                <div class="progress-wrapper">
-
-                    <div class="progress-background">
-
-                        <div
-                            class="progress-fill"
-                            style="width:${percentage}%"
-                        ></div>
-
-                    </div>
-
-
-                    <div class="progress-text">
-
-                        <span>
-                            ${percentage.toFixed(1)}%
-                        </span>
-
-                        <span>
-                            ${formatMoney(
-                                remaining
-                            )} left
-                        </span>
-
-                    </div>
-
-                </div>
-
-
-                <div class="remaining">
-
-                    ${
-                        remaining === 0
-
-                        ? "🎉 Goal reached!"
-
-                        : `💰 You need
-                           <strong>
-                               ${formatMoney(
-                                   remaining
-                               )}
-                           </strong>
-                           more to reach this goal.`
-                    }
-
-                </div>
-
-
-                <div class="deadline">
-
-                    ${
-                        goal.deadline
-                        ? `📅 Target date: ${goal.deadline}`
-                        : "📅 No target date set"
-                    }
-
-                </div>
-
-            `;
-
-
-            grid.appendChild(
-                card
-            );
 
         }
     );
 
-}
 
 
-// ==========================================
-// CREATE GOAL
-// ==========================================
+    /* ==========================================
+       PROFILE INITIAL
+    ========================================== */
 
-async function createGoal() {
+    function setProfileInitial() {
 
-    const name =
-        document.getElementById(
-            "goalName"
-        ).value.trim();
+        const name =
+            document
+                .getElementById(
+                    "profileName"
+                )
+                ?.innerText
+                ?.trim();
 
 
-    const targetAmount =
-        Number(
+        const avatar =
+            document.getElementById(
+                "profileAvatar"
+            );
+
+
+        if (!avatar) {
+            return;
+        }
+
+
+        if (!name) {
+
+            avatar.innerText =
+                "U";
+
+            return;
+
+        }
+
+
+        const words =
+            name.split(
+                /\s+/
+            );
+
+
+        let initials =
+            "";
+
+
+        if (
+            words.length === 1
+        ) {
+
+            initials =
+                words[0]
+                    .substring(
+                        0,
+                        2
+                    )
+                    .toUpperCase();
+
+        }
+
+        else {
+
+            initials =
+                (
+                    words[0][0] +
+                    words[
+                        words.length - 1
+                    ][0]
+                ).toUpperCase();
+
+        }
+
+
+        avatar.innerText =
+            initials || "U";
+
+    }
+
+
+
+    /* ==========================================
+       FORMAT MONEY
+    ========================================== */
+
+    function formatMoney(
+        amount
+    ) {
+
+        return "₹" +
+            Number(
+                amount || 0
+            ).toLocaleString(
+                "en-IN",
+                {
+                    maximumFractionDigits: 2
+                }
+            );
+
+    }
+
+
+
+    /* ==========================================
+       ESCAPE HTML
+    ========================================== */
+
+    function escapeHtml(
+        text
+    ) {
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+
+        div.textContent =
+            text ?? "";
+
+
+        return div.innerHTML;
+
+    }
+
+
+
+    /* ==========================================
+       SHOW ERROR
+    ========================================== */
+
+    function showError(
+        message
+    ) {
+
+        const box =
+            document.getElementById(
+                "errorMessage"
+            );
+
+
+        box.innerText =
+            "❌ " + message;
+
+
+        box.style.display =
+            "block";
+
+    }
+
+
+
+    /* ==========================================
+       API FETCH HELPER
+    ========================================== */
+
+    async function apiFetch(
+        url,
+        options = {}
+    ) {
+
+        const finalOptions = {
+
+            ...options,
+
+            credentials:
+                "same-origin",
+
+            headers: {
+
+                ...(options.headers || {})
+
+            }
+
+        };
+
+
+        const response =
+            await fetch(
+                url,
+                finalOptions
+            );
+
+
+        let data = {};
+
+
+        try {
+
+            data =
+                await response.json();
+
+        }
+
+        catch {
+
+            data = {};
+
+        }
+
+
+        /* ==============================
+           SESSION EXPIRED
+        ============================== */
+
+        if (
+            response.status === 401
+        ) {
+
+            window.location.href =
+                "/login";
+
+            return null;
+
+        }
+
+
+        return {
+            response,
+            data
+        };
+
+    }
+
+
+
+    /* ==========================================
+       LOAD GOALS
+    ========================================== */
+
+    async function loadGoals() {
+
+        const loading =
+            document.getElementById(
+                "loadingState"
+            );
+
+
+        const grid =
+            document.getElementById(
+                "goalsGrid"
+            );
+
+
+        try {
+
+            loading.style.display =
+                "block";
+
+
+            grid.style.display =
+                "none";
+
+
+            const result =
+                await apiFetch(
+                    "/api/goals"
+                );
+
+
+            if (!result) {
+                return;
+            }
+
+
+            const response =
+                result.response;
+
+
+            const data =
+                result.data;
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Could not load goals."
+                );
+
+            }
+
+
+            goals =
+                data.goals || [];
+
+
+            loading.style.display =
+                "none";
+
+
+            grid.style.display =
+                "grid";
+
+
+            renderGoals();
+
+        }
+
+        catch (error) {
+
+            console.error(
+                error
+            );
+
+
+            loading.style.display =
+                "none";
+
+
+            showError(
+                error.message
+            );
+
+        }
+
+    }
+
+
+
+    /* ==========================================
+       RENDER GOALS
+    ========================================== */
+
+    function renderGoals() {
+
+        const grid =
+            document.getElementById(
+                "goalsGrid"
+            );
+
+
+        const empty =
+            document.getElementById(
+                "emptyState"
+            );
+
+
+        grid.innerHTML =
+            "";
+
+
+        if (
+            goals.length === 0
+        ) {
+
+            grid.style.display =
+                "none";
+
+
+            empty.style.display =
+                "block";
+
+
+            return;
+
+        }
+
+
+        grid.style.display =
+            "grid";
+
+
+        empty.style.display =
+            "none";
+
+
+        goals.forEach(
+            goal => {
+
+
+                const target =
+                    Number(
+                        goal.target_amount || 0
+                    );
+
+
+                const current =
+                    Number(
+                        goal.current_amount || 0
+                    );
+
+
+                const remaining =
+                    Math.max(
+                        target - current,
+                        0
+                    );
+
+
+                let percentage =
+                    target > 0
+                    ? (
+                        current /
+                        target
+                    ) * 100
+                    : 0;
+
+
+                percentage =
+                    Math.min(
+                        Math.max(
+                            percentage,
+                            0
+                        ),
+                        100
+                    );
+
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                card.className =
+                    "goal-card";
+
+
+                card.innerHTML = `
+
+                    <div class="goal-card-header">
+
+                        <div>
+
+                            <div class="goal-icon">
+                                🎯
+                            </div>
+
+                            <h3 class="goal-title">
+                                ${escapeHtml(
+                                    goal.name
+                                )}
+                            </h3>
+
+                        </div>
+
+
+                        <button
+                            class="delete-goal"
+                            onclick="deleteGoal(
+                                ${Number(goal.id)}
+                            )"
+                            type="button"
+                        >
+                            🗑️
+                        </button>
+
+                    </div>
+
+
+                    <div class="goal-amounts">
+
+                        <div class="amount-box">
+
+                            <small>
+                                Saved
+                            </small>
+
+                            <strong>
+                                ${formatMoney(
+                                    current
+                                )}
+                            </strong>
+
+                        </div>
+
+
+                        <div class="amount-box">
+
+                            <small>
+                                Target
+                            </small>
+
+                            <strong>
+                                ${formatMoney(
+                                    target
+                                )}
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="progress-wrapper">
+
+                        <div class="progress-background">
+
+                            <div
+                                class="progress-fill"
+                                style="width:${percentage}%"
+                            ></div>
+
+                        </div>
+
+
+                        <div class="progress-text">
+
+                            <span>
+                                ${percentage.toFixed(1)}%
+                            </span>
+
+
+                            <span>
+                                ${formatMoney(
+                                    remaining
+                                )} left
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="remaining">
+
+                        ${
+                            remaining === 0
+
+                            ? "🎉 Goal reached!"
+
+                            : `💰 You need
+                                <strong>
+                                    ${formatMoney(
+                                        remaining
+                                    )}
+                                </strong>
+                                more to reach this goal.`
+                        }
+
+                    </div>
+
+
+                    <div class="deadline">
+
+                        ${
+                            goal.deadline
+
+                            ? `📅 Target date: ${escapeHtml(
+                                goal.deadline
+                              )}`
+
+                            : "📅 No target date set"
+                        }
+
+                    </div>
+
+                `;
+
+
+                grid.appendChild(
+                    card
+                );
+
+            }
+        );
+
+    }
+
+
+
+    /* ==========================================
+       CREATE GOAL
+    ========================================== */
+
+    async function createGoal() {
+
+        const name =
+            document
+                .getElementById(
+                    "goalName"
+                )
+                .value
+                .trim();
+
+
+        const targetAmount =
+            Number(
+                document.getElementById(
+                    "targetAmount"
+                ).value
+            );
+
+
+        const currentAmount =
+            Number(
+                document.getElementById(
+                    "currentAmount"
+                ).value || 0
+            );
+
+
+        const deadline =
+            document.getElementById(
+                "goalDeadline"
+            ).value;
+
+
+        const errorBox =
+            document.getElementById(
+                "errorMessage"
+            );
+
+
+        const createButton =
+            document.getElementById(
+                "createGoalButton"
+            );
+
+
+        errorBox.style.display =
+            "none";
+
+
+        /* ==============================
+           VALIDATION
+        ============================== */
+
+        if (!name) {
+
+            showError(
+                "Please enter a goal name."
+            );
+
+            return;
+
+        }
+
+
+        if (
+            !targetAmount ||
+            targetAmount <= 0
+        ) {
+
+            showError(
+                "Please enter a valid target amount."
+            );
+
+            return;
+
+        }
+
+
+        if (
+            currentAmount < 0
+        ) {
+
+            showError(
+                "Saved amount cannot be negative."
+            );
+
+            return;
+
+        }
+
+
+        if (
+            currentAmount >
+            targetAmount
+        ) {
+
+            showError(
+                "Saved amount cannot be greater than the target."
+            );
+
+            return;
+
+        }
+
+
+        createButton.disabled =
+            true;
+
+
+        createButton.innerText =
+            "Creating...";
+
+
+        try {
+
+            const result =
+                await apiFetch(
+                    "/api/goals",
+                    {
+
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                name:
+                                    name,
+
+                                target_amount:
+                                    targetAmount,
+
+                                current_amount:
+                                    currentAmount,
+
+                                deadline:
+                                    deadline
+
+                            })
+
+                    }
+                );
+
+
+            if (!result) {
+                return;
+            }
+
+
+            const response =
+                result.response;
+
+
+            const data =
+                result.data;
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Could not create goal."
+                );
+
+            }
+
+
+            /* ==============================
+               CLEAR FORM
+            ============================== */
+
+            document.getElementById(
+                "goalName"
+            ).value = "";
+
+
             document.getElementById(
                 "targetAmount"
-            ).value
-        );
+            ).value = "";
 
 
-    const currentAmount =
-        Number(
             document.getElementById(
                 "currentAmount"
-            ).value || 0
-        );
+            ).value = "";
 
 
-    const deadline =
-        document.getElementById(
-            "goalDeadline"
-        ).value;
+            document.getElementById(
+                "goalDeadline"
+            ).value = "";
 
 
-    const errorBox =
-        document.getElementById(
-            "errorMessage"
-        );
+            await loadGoals();
 
+        }
 
-    errorBox.style.display =
-        "none";
+        catch (error) {
 
-
-    if (!name) {
-
-        showError(
-            "Please enter a goal name."
-        );
-
-        return;
-
-    }
-
-
-    if (
-        !targetAmount ||
-        targetAmount <= 0
-    ) {
-
-        showError(
-            "Please enter a valid target amount."
-        );
-
-        return;
-
-    }
-
-
-    if (
-        currentAmount < 0
-    ) {
-
-        showError(
-            "Saved amount cannot be negative."
-        );
-
-        return;
-
-    }
-
-
-    if (
-        currentAmount >
-        targetAmount
-    ) {
-
-        showError(
-            "Saved amount cannot be greater than the target."
-        );
-
-        return;
-
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/goals",
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            name:
-                                name,
-
-                            target_amount:
-                                targetAmount,
-
-                            current_amount:
-                                currentAmount,
-
-                            deadline:
-                                deadline
-
-                        })
-
-                }
+            console.error(
+                error
             );
 
 
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not create goal."
+            showError(
+                error.message
             );
 
         }
 
+        finally {
 
-        document.getElementById(
-            "goalName"
-        ).value = "";
-
-
-        document.getElementById(
-            "targetAmount"
-        ).value = "";
+            createButton.disabled =
+                false;
 
 
-        document.getElementById(
-            "currentAmount"
-        ).value = "";
+            createButton.innerText =
+                "🎯 Create Goal";
 
-
-        document.getElementById(
-            "goalDeadline"
-        ).value = "";
-
-
-        await loadGoals();
+        }
 
     }
 
-    catch (error) {
-
-        showError(
-            error.message
-        );
-
-    }
-
-}
 
 
-// ==========================================
-// DELETE GOAL
-// ==========================================
+    /* ==========================================
+       DELETE GOAL
+    ========================================== */
 
-async function deleteGoal(
-    id
-) {
+    async function deleteGoal(
+        id
+    ) {
 
-    const confirmed =
-        confirm(
-            "Are you sure you want to delete this goal?"
-        );
-
-
-    if (!confirmed) {
-        return;
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/goals/${id}`,
-                {
-                    method:
-                        "DELETE"
-                }
+        const confirmed =
+            confirm(
+                "Are you sure you want to delete this goal?"
             );
 
 
-        const data =
-            await response.json();
+        if (!confirmed) {
+            return;
+        }
 
 
-        if (!response.ok) {
+        try {
 
-            throw new Error(
-                data.error ||
-                "Could not delete goal."
+            const result =
+                await apiFetch(
+                    `/api/goals/${id}`,
+                    {
+                        method:
+                            "DELETE"
+                    }
+                );
+
+
+            if (!result) {
+                return;
+            }
+
+
+            const response =
+                result.response;
+
+
+            const data =
+                result.data;
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Could not delete goal."
+                );
+
+            }
+
+
+            await loadGoals();
+
+        }
+
+        catch (error) {
+
+            console.error(
+                error
+            );
+
+
+            showError(
+                error.message
             );
 
         }
 
-
-        await loadGoals();
-
     }
 
-    catch (error) {
-
-        showError(
-            error.message
-        );
-
-    }
-
-}
 
 
-// ==========================================
-// START
-// ==========================================
+    /* ==========================================
+       START
+    ========================================== */
 
-loadGoals();
+    setProfileInitial();
+
+    loadGoals();
 
 </script>
+
 
 </body>
 

@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>Profile | FinPilot</title>
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+
+        body {
+
+            min-height: 100vh;
+
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            background: #f6f8fc;
+
+            color: #172033;
+
+            padding:
+                32px 20px;
+
+        }
+
+
+        .container {
+
+            max-width: 700px;
+
+            margin: 0 auto;
+
+        }
+
+
+        /* =====================================================
+           HEADER
+           ===================================================== */
+
+        .top {
+
+            display: flex;
+
+            justify-content:
+                space-between;
+
+            align-items:
+                center;
+
+            gap: 12px;
+
+            margin-bottom: 22px;
+
+        }
+
+
+        .brand {
+
+            font-size: 30px;
+
+            font-weight: 800;
+
+        }
+
+
+        .brand span {
+
+            color: #3563e9;
+
+        }
+
+
+        .top-actions {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+        }
+
+
+        .back,
+        .logout {
+
+            text-decoration: none;
+
+            padding:
+                9px 13px;
+
+            border-radius: 9px;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+        }
+
+
+        .back {
+
+            color: #3563e9;
+
+            background: #eef3ff;
+
+        }
+
+
+        .logout {
+
+            color: #c62828;
+
+            background: #fff0f0;
+
+        }
+
+
+        /* =====================================================
+           CARDS
+           ===================================================== */
+
+        .card {
+
+            background: white;
+
+            border:
+                1px solid #e5eaf2;
+
+            border-radius: 20px;
+
+            padding: 28px;
+
+            box-shadow:
+                0 12px 35px
+                rgba(
+                    32,
+                    52,
+                    89,
+                    0.08
+                );
+
+            margin-bottom: 18px;
+
+        }
+
+
+        .card h2 {
+
+            margin-bottom: 6px;
+
+            font-size: 21px;
+
+        }
+
+
+        .card-subtitle {
+
+            color: #7a8494;
+
+            font-size: 13px;
+
+            margin-bottom: 22px;
+
+        }
+
+
+        /* =====================================================
+           FIELDS
+           ===================================================== */
+
+        .field {
+
+            margin-bottom: 17px;
+
+        }
+
+
+        label {
+
+            display: block;
+
+            margin-bottom: 7px;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+            color: #374151;
+
+        }
+
+
+        input {
+
+            width: 100%;
+
+            height: 46px;
+
+            border:
+                1px solid #d9e0ea;
+
+            border-radius: 10px;
+
+            padding:
+                0 13px;
+
+            font-size: 15px;
+
+            outline: none;
+
+            transition: 0.2s ease;
+
+        }
+
+
+        input:focus {
+
+            border-color: #3563e9;
+
+            box-shadow:
+                0 0 0 3px
+                rgba(
+                    53,
+                    99,
+                    233,
+                    0.10
+                );
+
+        }
+
+
+        /* =====================================================
+           BUTTON
+           ===================================================== */
+
+        button {
+
+            border: none;
+
+            border-radius: 10px;
+
+            padding:
+                12px 18px;
+
+            background: #3563e9;
+
+            color: white;
+
+            font-weight: 700;
+
+            cursor: pointer;
+
+            font-size: 13px;
+
+        }
+
+
+        button:hover {
+
+            background: #2d55c9;
+
+        }
+
+
+        button:disabled {
+
+            opacity: 0.7;
+
+            cursor: not-allowed;
+
+        }
+
+
+        /* =====================================================
+           MESSAGES
+           ===================================================== */
+
+        .message {
+
+            margin-top: 12px;
+
+            min-height: 20px;
+
+            font-size: 14px;
+
+        }
+
+
+        /* =====================================================
+           ACCOUNT INFO
+           ===================================================== */
+
+        .account-info {
+
+            display: grid;
+
+            grid-template-columns:
+                1fr 1fr;
+
+            gap: 14px;
+
+            margin-top: 18px;
+
+        }
+
+
+        .info-box {
+
+            background: #f7f9fc;
+
+            border:
+                1px solid #edf0f5;
+
+            border-radius: 12px;
+
+            padding: 14px;
+
+        }
+
+
+        .info-label {
+
+            display: block;
+
+            color: #7a8494;
+
+            font-size: 11px;
+
+            margin-bottom: 5px;
+
+        }
+
+
+        .info-value {
+
+            display: block;
+
+            color: #172033;
+
+            font-size: 14px;
+
+            font-weight: 700;
+
+            word-break: break-word;
+
+        }
+
+
+        /* =====================================================
+           MOBILE
+           ===================================================== */
+
+        @media (max-width: 600px) {
+
+            body {
+
+                padding:
+                    20px 14px;
+
+            }
+
+
+            .top {
+
+                align-items:
+                    flex-start;
+
+            }
+
+
+            .brand {
+
+                font-size: 25px;
+
+            }
+
+
+            .top-actions {
+
+                flex-direction: column;
+
+                align-items: flex-end;
+
+            }
+
+
+            .account-info {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+
+            .card {
+
+                padding: 21px;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+    <!-- =====================================================
+         HEADER
+         ===================================================== -->
+
+    <div class="top">
+
+
+        <div class="brand">
+
+            Fin<span>Pilot</span>
+
+        </div>
+
+
+        <div class="top-actions">
+
+            <a
+                class="back"
+                href="/dashboard">
+
+                ← Dashboard
+
+            </a>
+
+
+            <a
+                class="logout"
+                href="/logout">
+
+                Logout
+
+            </a>
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         PROFILE CARD
+         ===================================================== -->
+
+    <div class="card">
+
+
+        <h2>
+            Profile
+        </h2>
+
+
+        <p class="card-subtitle">
+
+            Manage your FinPilot account information.
+
+        </p>
+
+
+        <form id="profileForm">
+
+
+            <div class="field">
+
+                <label for="name">
+                    Full Name
+                </label>
+
+                <input
+                    id="name"
+                    type="text"
+                    value="{{ user.name if user else '' }}"
+                    required
+                >
+
+            </div>
+
+
+            <div class="field">
+
+                <label for="email">
+                    Email Address
+                </label>
+
+                <input
+                    id="email"
+                    type="email"
+                    value="{{ user.email if user else '' }}"
+                    required
+                >
+
+            </div>
+
+
+            <button
+                type="submit"
+                id="profileBtn">
+
+                Save Profile
+
+            </button>
+
+
+            <div
+                id="profileMessage"
+                class="message">
+            </div>
+
+
+        </form>
+
+
+        <div class="account-info">
+
+
+            <div class="info-box">
+
+                <span class="info-label">
+                    Account ID
+                </span>
+
+                <span class="info-value">
+
+                    {{ user.id if user else '-' }}
+
+                </span>
+
+            </div>
+
+
+            <div class="info-box">
+
+                <span class="info-label">
+                    Joined
+                </span>
+
+                <span class="info-value">
+
+                    {{ user.created_at if user else '-' }}
+
+                </span>
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         CHANGE PASSWORD
+         ===================================================== -->
+
+    <div class="card">
+
+
+        <h2>
+            Change Password
+        </h2>
+
+
+        <p class="card-subtitle">
+
+            Enter your current password before setting a new one.
+
+        </p>
+
+
+        <form id="passwordForm">
+
+
+            <div class="field">
+
+                <label for="currentPassword">
+
+                    Current Password
+
+                </label>
+
+                <input
+                    id="currentPassword"
+                    type="password"
+                    placeholder="Enter current password"
+                    required
+                >
+
+            </div>
+
+
+            <div class="field">
+
+                <label for="newPassword">
+
+                    New Password
+
+                </label>
+
+                <input
+                    id="newPassword"
+                    type="password"
+                    minlength="6"
+                    placeholder="Minimum 6 characters"
+                    required
+                >
+
+            </div>
+
+
+            <div class="field">
+
+                <label for="confirmNewPassword">
+
+                    Confirm New Password
+
+                </label>
+
+                <input
+                    id="confirmNewPassword"
+                    type="password"
+                    minlength="6"
+                    placeholder="Re-enter new password"
+                    required
+                >
+
+            </div>
+
+
+            <button
+                type="submit"
+                id="passwordBtn">
+
+                Update Password
+
+            </button>
+
+
+            <div
+                id="passwordMessage"
+                class="message">
+            </div>
+
+
+        </form>
+
+
+    </div>
+
+
+</div>
+
+
+
+<script>
+
+
+    // ========================================================
+    // PROFILE UPDATE
+    // ========================================================
+
+    document
+        .getElementById("profileForm")
+        .addEventListener(
+            "submit",
+            async function(event) {
+
+                event.preventDefault();
+
+
+                const button =
+                    document.getElementById(
+                        "profileBtn"
+                    );
+
+
+                const message =
+                    document.getElementById(
+                        "profileMessage"
+                    );
+
+
+                const name =
+                    document
+                        .getElementById("name")
+                        .value
+                        .trim();
+
+
+                const email =
+                    document
+                        .getElementById("email")
+                        .value
+                        .trim();
+
+
+                if (!name || !email) {
+
+                    message.style.color =
+                        "#c62828";
+
+                    message.textContent =
+                        "Name and email are required.";
+
+                    return;
+                }
+
+
+                button.disabled = true;
+
+                button.textContent =
+                    "Saving...";
+
+
+                message.textContent = "";
+
+
+                try {
+
+
+                    const response =
+                        await fetch(
+                            "/api/profile",
+                            {
+
+                                method: "PUT",
+
+                                headers: {
+
+                                    "Content-Type":
+                                        "application/json"
+
+                                },
+
+                                body:
+                                    JSON.stringify({
+
+                                        name:
+                                            name,
+
+                                        email:
+                                            email
+
+                                    })
+
+                            }
+                        );
+
+
+                    const data =
+                        await response.json();
+
+
+                    if (
+                        response.ok &&
+                        data.success
+                    ) {
+
+                        message.style.color =
+                            "#198754";
+
+                        message.textContent =
+                            "Profile updated successfully.";
+
+                    } else {
+
+                        message.style.color =
+                            "#c62828";
+
+                        message.textContent =
+                            data.error ||
+                            "Could not update profile.";
+
+                    }
+
+
+                } catch (error) {
+
+                    message.style.color =
+                        "#c62828";
+
+                    message.textContent =
+                        "Could not connect to FinPilot.";
+
+                }
+
+
+                button.disabled = false;
+
+                button.textContent =
+                    "Save Profile";
+
+            }
+        );
+
+
+
+    // ========================================================
+    // PASSWORD UPDATE
+    // ========================================================
+
+    document
+        .getElementById("passwordForm")
+        .addEventListener(
+            "submit",
+            async function(event) {
+
+                event.preventDefault();
+
+
+                const button =
+                    document.getElementById(
+                        "passwordBtn"
+                    );
+
+
+                const message =
+                    document.getElementById(
+                        "passwordMessage"
+                    );
+
+
+                const currentPassword =
+                    document
+                        .getElementById(
+                            "currentPassword"
+                        )
+                        .value;
+
+
+                const newPassword =
+                    document
+                        .getElementById(
+                            "newPassword"
+                        )
+                        .value;
+
+
+                const confirmPassword =
+                    document
+                        .getElementById(
+                            "confirmNewPassword"
+                        )
+                        .value;
+
+
+                if (
+                    !currentPassword ||
+                    !newPassword ||
+                    !confirmPassword
+                ) {
+
+                    message.style.color =
+                        "#c62828";
+
+                    message.textContent =
+                        "All password fields are required.";
+
+                    return;
+                }
+
+
+                if (
+                    newPassword.length < 6
+                ) {
+
+                    message.style.color =
+                        "#c62828";
+
+                    message.textContent =
+                        "New password must contain at least 6 characters.";
+
+                    return;
+                }
+
+
+                if (
+                    newPassword !==
+                    confirmPassword
+                ) {
+
+                    message.style.color =
+                        "#c62828";
+
+                    message.textContent =
+                        "New passwords do not match.";
+
+                    return;
+                }
+
+
+                button.disabled = true;
+
+                button.textContent =
+                    "Updating...";
+
+
+                message.textContent = "";
+
+
+                try {
+
+
+                    const response =
+                        await fetch(
+                            "/api/profile/password",
+                            {
+
+                                method: "PUT",
+
+                                headers: {
+
+                                    "Content-Type":
+                                        "application/json"
+
+                                },
+
+                                body:
+                                    JSON.stringify({
+
+                                        current_password:
+                                            currentPassword,
+
+                                        new_password:
+                                            newPassword
+
+                                    })
+
+                            }
+                        );
+
+
+                    const data =
+                        await response.json();
+
+
+                    if (
+                        response.ok &&
+                        data.success
+                    ) {
+
+
+                        message.style.color =
+                            "#198754";
+
+
+                        message.textContent =
+                            "Password changed successfully.";
+
+
+                        document
+                            .getElementById(
+                                "passwordForm"
+                            )
+                            .reset();
+
+
+                    } else {
+
+
+                        message.style.color =
+                            "#c62828";
+
+
+                        message.textContent =
+                            data.error ||
+                            "Could not change password.";
+
+                    }
+
+
+                } catch (error) {
+
+
+                    message.style.color =
+                        "#c62828";
+
+
+                    message.textContent =
+                        "Could not connect to FinPilot.";
+
+                }
+
+
+                button.disabled = false;
+
+                button.textContent =
+                    "Update Password";
+
+            }
+        );
+
+</script>
+
+
+</body>
+
+</html>

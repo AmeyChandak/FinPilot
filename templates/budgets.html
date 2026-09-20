@@ -2,7 +2,6 @@
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
 
     <meta
@@ -18,6 +17,183 @@
     >
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f8fafc;
+            font-family: Arial, sans-serif;
+        }
+
+        .page-wrapper {
+            min-height: 100vh;
+        }
+
+        /* ==============================
+           TOP BAR
+        ============================== */
+
+        .top-bar {
+            height: 72px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+            background: #111827;
+            color: white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 17px;
+        }
+
+        .brand-name {
+            font-size: 21px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        /* ==============================
+           PROFILE
+        ============================== */
+
+        .profile-wrapper {
+            position: relative;
+        }
+
+        .profile-btn {
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 12px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .profile-btn:hover {
+            background: #f8fafc;
+        }
+
+        .profile-avatar {
+            width: 36px;
+            height: 36px;
+            background: #111827;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .profile-info {
+            text-align: left;
+            line-height: 1.2;
+        }
+
+        .profile-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .profile-email {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 3px;
+        }
+
+        .profile-arrow {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .profile-menu {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            width: 220px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+            padding: 8px;
+            display: none;
+        }
+
+        .profile-menu.show {
+            display: block;
+        }
+
+        .profile-menu-header {
+            padding: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            margin-bottom: 5px;
+        }
+
+        .profile-menu-header strong {
+            display: block;
+            font-size: 14px;
+            color: #111827;
+        }
+
+        .profile-menu-header span {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #64748b;
+            word-break: break-word;
+        }
+
+        .profile-menu a {
+            display: block;
+            text-decoration: none;
+            color: #111827;
+            padding: 11px 12px;
+            border-radius: 9px;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+
+        .profile-menu a:hover {
+            background: #f3f4f6;
+        }
+
+        .profile-menu a.logout-link {
+            color: #dc2626;
+        }
+
+        .profile-menu a.logout-link:hover {
+            background: #fef2f2;
+        }
+
+        /* ==============================
+           PAGE
+        ============================== */
 
         .budget-page {
             padding: 30px;
@@ -31,28 +207,34 @@
 
         .budget-header h1 {
             margin: 0;
+            color: #111827;
         }
 
         .budget-header p {
             color: #64748b;
+            margin-top: 8px;
         }
+
+        /* ==============================
+           FORM
+        ============================== */
 
         .budget-form {
             background: white;
             padding: 24px;
             border-radius: 18px;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.06);
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.06);
             margin-bottom: 25px;
         }
 
         .budget-form h2 {
             margin-top: 0;
+            margin-bottom: 20px;
         }
 
         .form-row {
             display: grid;
-            grid-template-columns:
-                repeat(3, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 16px;
         }
 
@@ -61,6 +243,7 @@
             font-size: 13px;
             font-weight: 600;
             margin-bottom: 7px;
+            color: #374151;
         }
 
         .form-group input,
@@ -71,6 +254,13 @@
             border: 1px solid #d1d5db;
             border-radius: 10px;
             font-size: 14px;
+            background: white;
+            outline: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #111827;
         }
 
         .save-budget {
@@ -88,10 +278,18 @@
             opacity: 0.9;
         }
 
+        .save-budget:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* ==============================
+           GRID
+        ============================== */
+
         .budget-grid {
             display: grid;
-            grid-template-columns:
-                repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
         }
 
@@ -99,7 +297,7 @@
             background: white;
             padding: 22px;
             border-radius: 18px;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.06);
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.06);
         }
 
         .budget-card-header {
@@ -111,14 +309,20 @@
         .budget-card-header h3 {
             margin: 0;
             font-size: 19px;
+            color: #111827;
         }
 
         .delete-budget {
             border: none;
             background: #fee2e2;
+            color: #991b1b;
             padding: 8px 10px;
             border-radius: 8px;
             cursor: pointer;
+        }
+
+        .delete-budget:hover {
+            background: #fecaca;
         }
 
         .budget-numbers {
@@ -135,6 +339,7 @@
 
         .budget-number strong {
             font-size: 19px;
+            color: #111827;
         }
 
         .progress-container {
@@ -166,6 +371,7 @@
             margin-top: 13px;
             font-weight: 600;
             font-size: 14px;
+            color: #374151;
         }
 
         .month-label {
@@ -174,6 +380,10 @@
             margin-top: 12px;
         }
 
+        /* ==============================
+           EMPTY STATE
+        ============================== */
+
         .empty-state {
             background: white;
             padding: 55px;
@@ -181,6 +391,14 @@
             border-radius: 18px;
             color: #64748b;
         }
+
+        .empty-state h3 {
+            color: #111827;
+        }
+
+        /* ==============================
+           ERROR
+        ============================== */
 
         .error-message {
             display: none;
@@ -191,181 +409,328 @@
             margin-top: 15px;
         }
 
+        /* ==============================
+           LOADING
+        ============================== */
+
+        .loading-state {
+            background: white;
+            padding: 40px;
+            text-align: center;
+            border-radius: 18px;
+            color: #64748b;
+        }
+
+        /* ==============================
+           MOBILE
+        ============================== */
+
         @media (max-width: 700px) {
 
-            .form-row {
-                grid-template-columns: 1fr;
+            .top-bar {
+                padding: 0 15px;
+            }
+
+            .profile-info {
+                display: none;
+            }
+
+            .profile-btn {
+                padding: 6px;
             }
 
             .budget-page {
                 padding: 18px;
             }
 
-        }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
 
+            .budget-numbers {
+                gap: 20px;
+            }
+        }
     </style>
 
 </head>
 
-
 <body>
 
-<div class="budget-page">
+<div class="page-wrapper">
 
     <!-- ================================= -->
-    <!-- HEADER -->
+    <!-- TOP BAR -->
     <!-- ================================= -->
 
-    <div class="budget-header">
+    <div class="top-bar">
 
-        <h1>
-            💰 Budgets
-        </h1>
+        <div class="brand">
 
-        <p>
-            Set spending limits and track your actual spending.
-        </p>
-
-    </div>
-
-
-    <!-- ================================= -->
-    <!-- BUDGET FORM -->
-    <!-- ================================= -->
-
-    <div class="budget-form">
-
-        <h2>
-            Set Monthly Budget
-        </h2>
-
-        <div class="form-row">
-
-            <div class="form-group">
-
-                <label>
-                    Category
-                </label>
-
-                <select id="budgetCategory">
-
-                    <option value="Food">
-                        Food
-                    </option>
-
-                    <option value="Shopping">
-                        Shopping
-                    </option>
-
-                    <option value="Transport">
-                        Transport
-                    </option>
-
-                    <option value="Entertainment">
-                        Entertainment
-                    </option>
-
-                    <option value="Bills">
-                        Bills
-                    </option>
-
-                    <option value="Rent">
-                        Rent
-                    </option>
-
-                    <option value="Education">
-                        Education
-                    </option>
-
-                    <option value="Healthcare">
-                        Healthcare
-                    </option>
-
-                    <option value="Other">
-                        Other
-                    </option>
-
-                </select>
-
+            <div class="brand-logo">
+                FP
             </div>
 
-
-            <div class="form-group">
-
-                <label>
-                    Monthly Budget
-                </label>
-
-                <input
-                    type="number"
-                    id="budgetAmount"
-                    placeholder="5000"
-                    min="1"
-                    step="0.01"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label>
-                    Month
-                </label>
-
-                <input
-                    type="month"
-                    id="budgetMonth"
-                >
-
+            <div class="brand-name">
+                FinPilot
             </div>
 
         </div>
 
 
-        <button
-            class="save-budget"
-            onclick="saveBudget()"
-        >
-            💾 Save Budget
-        </button>
+        <!-- ================================= -->
+        <!-- PROFILE DROPDOWN -->
+        <!-- ================================= -->
+
+        <div class="profile-wrapper">
+
+            <button
+                class="profile-btn"
+                id="profileBtn"
+                type="button"
+                onclick="toggleProfileMenu()"
+            >
+
+                <div
+                    class="profile-avatar"
+                    id="profileAvatar"
+                >
+                    U
+                </div>
+
+                <div class="profile-info">
+
+                    <div
+                        class="profile-name"
+                        id="profileName"
+                    >
+                        {{ session.get('user_name', 'User') }}
+                    </div>
+
+                    <div
+                        class="profile-email"
+                        id="profileEmail"
+                    >
+                        {{ session.get('user_email', '') }}
+                    </div>
+
+                </div>
+
+                <div class="profile-arrow">
+                    ▼
+                </div>
+
+            </button>
 
 
-        <div
-            id="errorMessage"
-            class="error-message"
-        ></div>
+            <div
+                class="profile-menu"
+                id="profileMenu"
+            >
+
+                <div class="profile-menu-header">
+
+                    <strong>
+                        {{ session.get('user_name', 'User') }}
+                    </strong>
+
+                    <span>
+                        {{ session.get('user_email', '') }}
+                    </span>
+
+                </div>
+
+                <a href="/profile">
+                    👤 Profile
+                </a>
+
+                <a
+                    href="/logout"
+                    class="logout-link"
+                >
+                    🚪 Logout
+                </a>
+
+            </div>
+
+        </div>
 
     </div>
 
 
     <!-- ================================= -->
-    <!-- BUDGET CARDS -->
+    <!-- PAGE -->
     <!-- ================================= -->
 
-    <div
-        id="budgetGrid"
-        class="budget-grid"
-    ></div>
+    <div class="budget-page">
+
+        <!-- ================================= -->
+        <!-- HEADER -->
+        <!-- ================================= -->
+
+        <div class="budget-header">
+
+            <h1>
+                💰 Budgets
+            </h1>
+
+            <p>
+                Set spending limits and track your actual spending.
+            </p>
+
+        </div>
 
 
-    <!-- ================================= -->
-    <!-- EMPTY -->
-    <!-- ================================= -->
+        <!-- ================================= -->
+        <!-- BUDGET FORM -->
+        <!-- ================================= -->
 
-    <div
-        id="emptyState"
-        class="empty-state"
-        style="display:none;"
-    >
+        <div class="budget-form">
 
-        <h3>
-            No budgets yet
-        </h3>
+            <h2>
+                Set Monthly Budget
+            </h2>
 
-        <p>
-            Create your first monthly budget above.
-        </p>
+
+            <div class="form-row">
+
+                <div class="form-group">
+
+                    <label>
+                        Category
+                    </label>
+
+                    <select id="budgetCategory">
+
+                        <option value="Food">
+                            Food
+                        </option>
+
+                        <option value="Shopping">
+                            Shopping
+                        </option>
+
+                        <option value="Transport">
+                            Transport
+                        </option>
+
+                        <option value="Entertainment">
+                            Entertainment
+                        </option>
+
+                        <option value="Bills">
+                            Bills
+                        </option>
+
+                        <option value="Rent">
+                            Rent
+                        </option>
+
+                        <option value="Education">
+                            Education
+                        </option>
+
+                        <option value="Healthcare">
+                            Healthcare
+                        </option>
+
+                        <option value="Other">
+                            Other
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Monthly Budget
+                    </label>
+
+                    <input
+                        type="number"
+                        id="budgetAmount"
+                        placeholder="5000"
+                        min="1"
+                        step="0.01"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Month
+                    </label>
+
+                    <input
+                        type="month"
+                        id="budgetMonth"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <button
+                class="save-budget"
+                id="saveBudgetButton"
+                onclick="saveBudget()"
+                type="button"
+            >
+                💾 Save Budget
+            </button>
+
+
+            <div
+                id="errorMessage"
+                class="error-message"
+            ></div>
+
+        </div>
+
+
+        <!-- ================================= -->
+        <!-- BUDGET CARDS -->
+        <!-- ================================= -->
+
+        <div
+            id="loadingState"
+            class="loading-state"
+        >
+            Loading budgets...
+        </div>
+
+        <div
+            id="budgetGrid"
+            class="budget-grid"
+            style="display:none;"
+        ></div>
+
+
+        <!-- ================================= -->
+        <!-- EMPTY -->
+        <!-- ================================= -->
+
+        <div
+            id="emptyState"
+            class="empty-state"
+            style="display:none;"
+        >
+
+            <h3>
+                No budgets yet
+            </h3>
+
+            <p>
+                Create your first monthly budget above.
+            </p>
+
+        </div>
 
     </div>
 
@@ -374,660 +739,903 @@
 
 <script>
 
-let budgets = [];
+    let budgets = [];
 
-let transactions = [];
-
-
-// ==========================================
-// FORMAT MONEY
-// ==========================================
-
-function formatMoney(
-    amount
-) {
-
-    return "₹" +
-        Number(
-            amount || 0
-        ).toLocaleString(
-            "en-IN",
-            {
-                maximumFractionDigits: 2
-            }
-        );
-
-}
+    let transactions = [];
 
 
-// ==========================================
-// CURRENT MONTH
-// ==========================================
+    /* ==========================================
+       PROFILE DROPDOWN
+    ========================================== */
 
-function setCurrentMonth() {
+    function toggleProfileMenu() {
 
-    const input =
-        document.getElementById(
-            "budgetMonth"
-        );
+        const menu =
+            document.getElementById("profileMenu");
 
-    const now =
-        new Date();
-
-    const month =
-        now.getFullYear()
-        + "-"
-        + String(
-            now.getMonth() + 1
-        ).padStart(
-            2,
-            "0"
-        );
-
-    input.value =
-        month;
-
-}
+        menu.classList.toggle("show");
+    }
 
 
-// ==========================================
-// LOAD BUDGETS + TRANSACTIONS
-// ==========================================
+    document.addEventListener("click", function(event) {
 
-async function loadBudgets() {
+        const wrapper =
+            document.querySelector(".profile-wrapper");
 
-    try {
+        const menu =
+            document.getElementById("profileMenu");
 
-        const budgetResponse =
-            await fetch(
-                "/api/budgets"
-            );
+        if (
+            wrapper &&
+            !wrapper.contains(event.target)
+        ) {
 
-        const budgetData =
-            await budgetResponse.json();
+            menu.classList.remove("show");
+        }
+
+    });
 
 
-        if (!budgetResponse.ok) {
+    /* ==========================================
+       PROFILE INITIALS
+    ========================================== */
 
-            throw new Error(
-                budgetData.error ||
-                "Could not load budgets."
-            );
+    function setProfileInitial() {
+
+        const name =
+            document.getElementById("profileName")
+                ?.innerText
+                ?.trim();
+
+        const avatar =
+            document.getElementById("profileAvatar");
+
+        if (!avatar) {
+            return;
+        }
+
+        if (!name) {
+            avatar.innerText = "U";
+            return;
+        }
+
+        const words =
+            name.split(/\s+/);
+
+        let initials = "";
+
+        if (words.length === 1) {
+
+            initials =
+                words[0]
+                    .substring(0, 2)
+                    .toUpperCase();
+
+        } else {
+
+            initials =
+                (
+                    words[0][0] +
+                    words[words.length - 1][0]
+                ).toUpperCase();
 
         }
 
-
-        budgets =
-            budgetData.budgets || [];
-
-
-        const transactionResponse =
-            await fetch(
-                "/api/transactions"
-            );
-
-        const transactionData =
-            await transactionResponse.json();
-
-
-        if (!transactionResponse.ok) {
-
-            throw new Error(
-                transactionData.error ||
-                "Could not load transactions."
-            );
-
-        }
-
-
-        transactions =
-            transactionData.transactions || [];
-
-
-        renderBudgets();
-
-    }
-
-    catch (error) {
-
-        console.error(
-            error
-        );
-
-        showError(
-            error.message
-        );
-
-    }
-
-}
-
-
-// ==========================================
-// ACTUAL SPENDING
-// ==========================================
-
-function getActualSpending(
-    category,
-    month
-) {
-
-    let total = 0;
-
-
-    transactions.forEach(
-        transaction => {
-
-            if (
-                transaction.category !==
-                category
-            ) {
-
-                return;
-
-            }
-
-
-            if (
-                transaction.type !==
-                "expense"
-            ) {
-
-                return;
-
-            }
-
-
-            if (
-                !String(
-                    transaction.date
-                ).startsWith(
-                    month
-                )
-            ) {
-
-                return;
-
-            }
-
-
-            total += Math.abs(
-                Number(
-                    transaction.amount
-                )
-            );
-
-        }
-    );
-
-
-    return total;
-
-}
-
-
-// ==========================================
-// RENDER BUDGETS
-// ==========================================
-
-function renderBudgets() {
-
-    const grid =
-        document.getElementById(
-            "budgetGrid"
-        );
-
-    const empty =
-        document.getElementById(
-            "emptyState"
-        );
-
-
-    grid.innerHTML =
-        "";
-
-
-    if (
-        budgets.length === 0
-    ) {
-
-        empty.style.display =
-            "block";
-
-        return;
-
+        avatar.innerText =
+            initials || "U";
     }
 
 
-    empty.style.display =
-        "none";
-
-
-    budgets.forEach(
-        budget => {
-
-            const actual =
-                getActualSpending(
-                    budget.category,
-                    budget.month
-                );
-
-
-            const budgetAmount =
-                Number(
-                    budget.amount
-                );
-
-
-            const percentage =
-                budgetAmount > 0
-                ? (
-                    actual /
-                    budgetAmount
-                ) * 100
-                : 0;
-
-
-            const progress =
-                Math.min(
-                    percentage,
-                    100
-                );
-
-
-            let status;
-
-            let statusClass;
-
-
-            if (
-                percentage > 100
-            ) {
-
-                status =
-                    `⚠️ Over budget by ${
-                        formatMoney(
-                            actual -
-                            budgetAmount
-                        )
-                    }`;
-
-                statusClass =
-                    "danger";
-
-            }
-
-            else if (
-                percentage >= 80
-            ) {
-
-                status =
-                    `⚠️ ${
-                        Math.round(
-                            percentage
-                        )
-                    }% of budget used`;
-
-                statusClass =
-                    "warning";
-
-            }
-
-            else {
-
-                status =
-                    `✓ ${
-                        Math.round(
-                            percentage
-                        )
-                    }% of budget used`;
-
-                statusClass =
-                    "safe";
-
-            }
-
-
-            const card =
-                document.createElement(
-                    "div"
-                );
-
-            card.className =
-                "budget-card";
-
-
-            card.innerHTML = `
-
-                <div class="budget-card-header">
-
-                    <h3>
-                        ${escapeHtml(
-                            budget.category
-                        )}
-                    </h3>
-
-                    <button
-                        class="delete-budget"
-                        onclick="deleteBudget(
-                            ${budget.id}
-                        )"
-                    >
-                        🗑️
-                    </button>
-
-                </div>
-
-
-                <div class="budget-numbers">
-
-                    <div class="budget-number">
-
-                        <small>
-                            Budget
-                        </small>
-
-                        <strong>
-                            ${formatMoney(
-                                budgetAmount
-                            )}
-                        </strong>
-
-                    </div>
-
-
-                    <div class="budget-number">
-
-                        <small>
-                            Spent
-                        </small>
-
-                        <strong>
-                            ${formatMoney(
-                                actual
-                            )}
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
-                <div class="progress-container">
-
-                    <div
-                        class="progress-bar ${statusClass}"
-                        style="width:${progress}%"
-                    ></div>
-
-                </div>
-
-
-                <div class="budget-status">
-
-                    ${status}
-
-                </div>
-
-
-                <div class="month-label">
-
-                    📅 ${budget.month}
-
-                </div>
-
-            `;
-
-
-            grid.appendChild(
-                card
-            );
-
-        }
-    );
-
-}
-
-
-// ==========================================
-// ESCAPE HTML
-// ==========================================
-
-function escapeHtml(
-    text
-) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-    div.textContent =
-        text;
-
-    return div.innerHTML;
-
-}
-
-
-// ==========================================
-// SHOW ERROR
-// ==========================================
-
-function showError(
-    message
-) {
-
-    const box =
-        document.getElementById(
-            "errorMessage"
-        );
-
-    box.innerText =
-        "❌ " + message;
-
-    box.style.display =
-        "block";
-
-}
-
-
-// ==========================================
-// SAVE BUDGET
-// ==========================================
-
-async function saveBudget() {
-
-    const category =
-        document.getElementById(
-            "budgetCategory"
-        ).value;
-
-
-    const amount =
-        Number(
-            document.getElementById(
-                "budgetAmount"
-            ).value
-        );
-
-
-    const month =
-        document.getElementById(
-            "budgetMonth"
-        ).value;
-
-
-    const errorBox =
-        document.getElementById(
-            "errorMessage"
-        );
-
-
-    errorBox.style.display =
-        "none";
-
-
-    if (
-        !amount ||
-        amount <= 0
-    ) {
-
-        showError(
-            "Please enter a valid budget amount."
-        );
-
-        return;
-
-    }
-
-
-    if (!month) {
-
-        showError(
-            "Please select a month."
-        );
-
-        return;
-
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/budgets",
+    /* ==========================================
+       FORMAT MONEY
+    ========================================== */
+
+    function formatMoney(amount) {
+
+        return "₹" +
+            Number(
+                amount || 0
+            ).toLocaleString(
+                "en-IN",
                 {
-
-                    method:
-                        "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            category:
-                                category,
-
-                            amount:
-                                amount,
-
-                            month:
-                                month
-
-                        })
-
+                    maximumFractionDigits: 2
                 }
             );
 
-
-        const data =
-            await response.json();
+    }
 
 
-        if (!response.ok) {
+    /* ==========================================
+       CURRENT MONTH
+    ========================================== */
 
-            throw new Error(
-                data.error ||
-                "Could not save budget."
+    function setCurrentMonth() {
+
+        const input =
+            document.getElementById(
+                "budgetMonth"
+            );
+
+        const now =
+            new Date();
+
+        const month =
+            now.getFullYear()
+            + "-"
+            + String(
+                now.getMonth() + 1
+            ).padStart(
+                2,
+                "0"
+            );
+
+        input.value =
+            month;
+
+    }
+
+
+    /* ==========================================
+       API FETCH HELPER
+    ========================================== */
+
+    async function apiFetch(
+        url,
+        options = {}
+    ) {
+
+        const finalOptions = {
+
+            ...options,
+
+            credentials:
+                "same-origin",
+
+            headers: {
+
+                ...(options.headers || {})
+
+            }
+
+        };
+
+        const response =
+            await fetch(
+                url,
+                finalOptions
+            );
+
+        let data = {};
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch {
+
+            data = {};
+
+        }
+
+        if (
+            response.status === 401
+        ) {
+
+            window.location.href =
+                "/login";
+
+            return null;
+
+        }
+
+        return {
+            response,
+            data
+        };
+
+    }
+
+
+    /* ==========================================
+       LOAD BUDGETS + TRANSACTIONS
+    ========================================== */
+
+    async function loadBudgets() {
+
+        const loading =
+            document.getElementById(
+                "loadingState"
+            );
+
+        const grid =
+            document.getElementById(
+                "budgetGrid"
+            );
+
+        try {
+
+            loading.style.display =
+                "block";
+
+            grid.style.display =
+                "none";
+
+
+            /* ==============================
+               LOAD BUDGETS
+            ============================== */
+
+            const budgetResult =
+                await apiFetch(
+                    "/api/budgets"
+                );
+
+            if (!budgetResult) {
+                return;
+            }
+
+            const budgetResponse =
+                budgetResult.response;
+
+            const budgetData =
+                budgetResult.data;
+
+
+            if (!budgetResponse.ok) {
+
+                throw new Error(
+                    budgetData.error ||
+                    "Could not load budgets."
+                );
+
+            }
+
+
+            budgets =
+                budgetData.budgets || [];
+
+
+            /* ==============================
+               LOAD TRANSACTIONS
+            ============================== */
+
+            const transactionResult =
+                await apiFetch(
+                    "/api/transactions"
+                );
+
+            if (!transactionResult) {
+                return;
+            }
+
+            const transactionResponse =
+                transactionResult.response;
+
+            const transactionData =
+                transactionResult.data;
+
+
+            if (!transactionResponse.ok) {
+
+                throw new Error(
+                    transactionData.error ||
+                    "Could not load transactions."
+                );
+
+            }
+
+
+            transactions =
+                transactionData.transactions || [];
+
+
+            loading.style.display =
+                "none";
+
+            grid.style.display =
+                "grid";
+
+
+            renderBudgets();
+
+        }
+
+        catch (error) {
+
+            console.error(
+                error
+            );
+
+            loading.style.display =
+                "none";
+
+            showError(
+                error.message
             );
 
         }
 
+    }
 
-        document.getElementById(
-            "budgetAmount"
-        ).value =
+
+    /* ==========================================
+       ACTUAL SPENDING
+    ========================================== */
+
+    function getActualSpending(
+        category,
+        month
+    ) {
+
+        let total = 0;
+
+
+        transactions.forEach(
+            transaction => {
+
+                if (
+                    transaction.category !==
+                    category
+                ) {
+                    return;
+                }
+
+
+                if (
+                    transaction.type !==
+                    "expense"
+                ) {
+                    return;
+                }
+
+
+                if (
+                    !String(
+                        transaction.date
+                    ).startsWith(
+                        month
+                    )
+                ) {
+                    return;
+                }
+
+
+                total += Math.abs(
+                    Number(
+                        transaction.amount
+                    )
+                );
+
+            }
+        );
+
+
+        return total;
+
+    }
+
+
+    /* ==========================================
+       RENDER BUDGETS
+    ========================================== */
+
+    function renderBudgets() {
+
+        const grid =
+            document.getElementById(
+                "budgetGrid"
+            );
+
+        const empty =
+            document.getElementById(
+                "emptyState"
+            );
+
+
+        grid.innerHTML =
             "";
 
 
-        await loadBudgets();
+        if (
+            budgets.length === 0
+        ) {
 
-    }
+            grid.style.display =
+                "none";
 
-    catch (error) {
+            empty.style.display =
+                "block";
 
-        showError(
-            error.message
-        );
-
-    }
-
-}
-
-
-// ==========================================
-// DELETE BUDGET
-// ==========================================
-
-async function deleteBudget(
-    id
-) {
-
-    const confirmed =
-        confirm(
-            "Are you sure you want to delete this budget?"
-        );
-
-
-    if (!confirmed) {
-        return;
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/budgets/${id}`,
-                {
-                    method:
-                        "DELETE"
-                }
-            );
-
-
-        const data =
-            await response.json();
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error ||
-                "Could not delete budget."
-            );
+            return;
 
         }
 
 
-        await loadBudgets();
+        grid.style.display =
+            "grid";
 
-    }
+        empty.style.display =
+            "none";
 
-    catch (error) {
 
-        showError(
-            error.message
+        budgets.forEach(
+            budget => {
+
+                const actual =
+                    getActualSpending(
+                        budget.category,
+                        budget.month
+                    );
+
+
+                const budgetAmount =
+                    Number(
+                        budget.amount
+                    );
+
+
+                const percentage =
+                    budgetAmount > 0
+                    ? (
+                        actual /
+                        budgetAmount
+                    ) * 100
+                    : 0;
+
+
+                const progress =
+                    Math.min(
+                        percentage,
+                        100
+                    );
+
+
+                let status;
+
+                let statusClass;
+
+
+                if (
+                    percentage > 100
+                ) {
+
+                    status =
+                        `⚠️ Over budget by ${
+                            formatMoney(
+                                actual -
+                                budgetAmount
+                            )
+                        }`;
+
+                    statusClass =
+                        "danger";
+
+                }
+
+                else if (
+                    percentage >= 80
+                ) {
+
+                    status =
+                        `⚠️ ${
+                            Math.round(
+                                percentage
+                            )
+                        }% of budget used`;
+
+                    statusClass =
+                        "warning";
+
+                }
+
+                else {
+
+                    status =
+                        `✓ ${
+                            Math.round(
+                                percentage
+                            )
+                        }% of budget used`;
+
+                    statusClass =
+                        "safe";
+
+                }
+
+
+                const card =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                card.className =
+                    "budget-card";
+
+
+                card.innerHTML = `
+
+                    <div class="budget-card-header">
+
+                        <h3>
+                            ${escapeHtml(
+                                budget.category
+                            )}
+                        </h3>
+
+                        <button
+                            class="delete-budget"
+                            onclick="deleteBudget(
+                                ${Number(budget.id)}
+                            )"
+                            type="button"
+                        >
+                            🗑️
+                        </button>
+
+                    </div>
+
+
+                    <div class="budget-numbers">
+
+                        <div class="budget-number">
+
+                            <small>
+                                Budget
+                            </small>
+
+                            <strong>
+                                ${formatMoney(
+                                    budgetAmount
+                                )}
+                            </strong>
+
+                        </div>
+
+
+                        <div class="budget-number">
+
+                            <small>
+                                Spent
+                            </small>
+
+                            <strong>
+                                ${formatMoney(
+                                    actual
+                                )}
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="progress-container">
+
+                        <div
+                            class="progress-bar ${statusClass}"
+                            style="width:${progress}%"
+                        ></div>
+
+                    </div>
+
+
+                    <div class="budget-status">
+
+                        ${status}
+
+                    </div>
+
+
+                    <div class="month-label">
+
+                        📅 ${escapeHtml(
+                            budget.month
+                        )}
+
+                    </div>
+
+                `;
+
+
+                grid.appendChild(
+                    card
+                );
+
+            }
         );
 
     }
 
-}
+
+    /* ==========================================
+       ESCAPE HTML
+    ========================================== */
+
+    function escapeHtml(
+        text
+    ) {
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+        div.textContent =
+            text ?? "";
+
+        return div.innerHTML;
+
+    }
 
 
-// ==========================================
-// START
-// ==========================================
+    /* ==========================================
+       SHOW ERROR
+    ========================================== */
 
-setCurrentMonth();
+    function showError(
+        message
+    ) {
 
-loadBudgets();
+        const box =
+            document.getElementById(
+                "errorMessage"
+            );
+
+        box.innerText =
+            "❌ " + message;
+
+        box.style.display =
+            "block";
+
+    }
+
+
+    /* ==========================================
+       SAVE BUDGET
+    ========================================== */
+
+    async function saveBudget() {
+
+        const category =
+            document.getElementById(
+                "budgetCategory"
+            ).value;
+
+
+        const amount =
+            Number(
+                document.getElementById(
+                    "budgetAmount"
+                ).value
+            );
+
+
+        const month =
+            document.getElementById(
+                "budgetMonth"
+            ).value;
+
+
+        const errorBox =
+            document.getElementById(
+                "errorMessage"
+            );
+
+        const saveButton =
+            document.getElementById(
+                "saveBudgetButton"
+            );
+
+
+        errorBox.style.display =
+            "none";
+
+
+        if (
+            !amount ||
+            amount <= 0
+        ) {
+
+            showError(
+                "Please enter a valid budget amount."
+            );
+
+            return;
+
+        }
+
+
+        if (!month) {
+
+            showError(
+                "Please select a month."
+            );
+
+            return;
+
+        }
+
+
+        saveButton.disabled =
+            true;
+
+        saveButton.innerText =
+            "Saving...";
+
+
+        try {
+
+            const result =
+                await apiFetch(
+                    "/api/budgets",
+                    {
+
+                        method:
+                            "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                category:
+                                    category,
+
+                                amount:
+                                    amount,
+
+                                month:
+                                    month
+
+                            })
+
+                    }
+                );
+
+
+            if (!result) {
+                return;
+            }
+
+
+            const response =
+                result.response;
+
+            const data =
+                result.data;
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Could not save budget."
+                );
+
+            }
+
+
+            document.getElementById(
+                "budgetAmount"
+            ).value =
+                "";
+
+
+            await loadBudgets();
+
+        }
+
+        catch (error) {
+
+            console.error(
+                error
+            );
+
+            showError(
+                error.message
+            );
+
+        }
+
+        finally {
+
+            saveButton.disabled =
+                false;
+
+            saveButton.innerText =
+                "💾 Save Budget";
+
+        }
+
+    }
+
+
+    /* ==========================================
+       DELETE BUDGET
+    ========================================== */
+
+    async function deleteBudget(
+        id
+    ) {
+
+        const confirmed =
+            confirm(
+                "Are you sure you want to delete this budget?"
+            );
+
+
+        if (!confirmed) {
+            return;
+        }
+
+
+        try {
+
+            const result =
+                await apiFetch(
+                    `/api/budgets/${id}`,
+                    {
+                        method:
+                            "DELETE"
+                    }
+                );
+
+
+            if (!result) {
+                return;
+            }
+
+
+            const response =
+                result.response;
+
+            const data =
+                result.data;
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Could not delete budget."
+                );
+
+            }
+
+
+            await loadBudgets();
+
+        }
+
+        catch (error) {
+
+            console.error(
+                error
+            );
+
+            showError(
+                error.message
+            );
+
+        }
+
+    }
+
+
+    /* ==========================================
+       START
+    ========================================== */
+
+    setCurrentMonth();
+
+    setProfileInitial();
+
+    loadBudgets();
 
 </script>
 

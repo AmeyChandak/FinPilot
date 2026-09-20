@@ -18,15 +18,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 
-    <!-- =====================================================
-         FINAL DASHBOARD LAYOUT
-         ===================================================== -->
-
     <style>
 
-        /* =================================================
-           FINAL DASHBOARD BOARD
-           ================================================= */
+        /* =====================================================
+           DASHBOARD GRID
+           ===================================================== */
 
         .dashboard-board {
 
@@ -58,10 +54,6 @@
         }
 
 
-        /* =================================================
-           COMMON DASHBOARD PANEL
-           ================================================= */
-
         .dashboard-board .dashboard-panel {
 
             min-width: 0;
@@ -82,10 +74,6 @@
 
         }
 
-
-        /* =================================================
-           GRID AREAS
-           ================================================= */
 
         .dashboard-spending {
             grid-area: spending;
@@ -112,10 +100,6 @@
         }
 
 
-        /* =================================================
-           PANEL HEADER
-           ================================================= */
-
         .dashboard-board .panel-header {
 
             flex-shrink: 0;
@@ -125,9 +109,9 @@
         }
 
 
-        /* =================================================
+        /* =====================================================
            CHART
-           ================================================= */
+           ===================================================== */
 
         .dashboard-chart-wrap {
 
@@ -151,9 +135,30 @@
         }
 
 
-        /* =================================================
+        .chart-empty {
+
+            position: absolute;
+
+            inset: 0;
+
+            display: none;
+
+            align-items: center;
+
+            justify-content: center;
+
+            flex-direction: column;
+
+            color: #7a8494;
+
+            text-align: center;
+
+        }
+
+
+        /* =====================================================
            SCROLLABLE LISTS
-           ================================================= */
+           ===================================================== */
 
         .dashboard-scroll {
 
@@ -193,61 +198,8 @@
         }
 
 
-        .dashboard-scroll::-webkit-scrollbar-thumb:hover {
-
-            background: #9ca3af;
-
-        }
-
-
-        /* =================================================
-           CATEGORIES
-           ================================================= */
-
-        .dashboard-categories .category-list {
-
-            display: flex;
-
-            flex-direction: column;
-
-            gap: 9px;
-
-        }
-
-
-        .dashboard-categories .category-item {
-
-            flex-shrink: 0;
-
-        }
-
-
-        /* =================================================
-           RECURRING
-           ================================================= */
-
-        .dashboard-recurring .recurring-list {
-
-            display: flex;
-
-            flex-direction: column;
-
-            gap: 9px;
-
-        }
-
-
-        .dashboard-recurring .recurring-item {
-
-            flex-shrink: 0;
-
-        }
-
-
-        /* =================================================
-           UNUSUAL
-           ================================================= */
-
+        .dashboard-categories .category-list,
+        .dashboard-recurring .recurring-list,
         .dashboard-unusual .unusual-list {
 
             display: flex;
@@ -259,16 +211,18 @@
         }
 
 
-        .dashboard-unusual .unusual-item {
+        .category-item,
+        .recurring-item,
+        .unusual-item {
 
             flex-shrink: 0;
 
         }
 
 
-        /* =================================================
+        /* =====================================================
            GOALS
-           ================================================= */
+           ===================================================== */
 
         .dashboard-goals .goal-impact-container {
 
@@ -289,16 +243,16 @@
         }
 
 
-        .dashboard-goals .goal-impact-card {
+        .goal-impact-card {
 
             flex-shrink: 0;
 
         }
 
 
-        /* =================================================
-           BUDGET
-           ================================================= */
+        /* =====================================================
+           BUDGETS
+           ===================================================== */
 
         .dashboard-budget .budget-analysis-container {
 
@@ -319,16 +273,16 @@
         }
 
 
-        .dashboard-budget .budget-analysis-item {
+        .budget-analysis-item {
 
             flex-shrink: 0;
 
         }
 
 
-        /* =================================================
-           MONTHLY SPENDING
-           ================================================= */
+        /* =====================================================
+           FULL WIDTH PANELS
+           ===================================================== */
 
         .dashboard-full-panel {
 
@@ -348,10 +302,6 @@
         }
 
 
-        /* =================================================
-           MONTHLY LIST
-           ================================================= */
-
         .dashboard-full-panel .monthly-list {
 
             width: 100%;
@@ -364,10 +314,6 @@
 
         }
 
-
-        /* =================================================
-           RECENT TRANSACTIONS
-           ================================================= */
 
         .dashboard-full-panel .recent-transactions {
 
@@ -382,10 +328,6 @@
         }
 
 
-        /* =================================================
-           AI ASSISTANT
-           ================================================= */
-
         .dashboard-ai-section {
 
             width: 100%;
@@ -395,40 +337,247 @@
         }
 
 
-        /* =================================================
-           REDUCE EXCESSIVE CARD MARGINS
-           ================================================= */
+        /* =====================================================
+           USER PROFILE
+           ===================================================== */
 
-        .dashboard-board .panel {
+        .header-actions {
 
-            box-shadow:
-                0 2px 10px rgba(15, 23, 42, 0.03);
+            display: flex;
+
+            align-items: center;
+
+            justify-content: flex-end;
+
+            gap: 12px;
 
         }
 
 
-        /* =================================================
-           TABLET
-           ================================================= */
+        .user-menu {
+
+            position: relative;
+
+            z-index: 50;
+
+        }
+
+
+        .user-menu summary {
+
+            list-style: none;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 9px;
+
+            padding: 7px 11px 7px 7px;
+
+            border: 1px solid #e1e6ef;
+
+            border-radius: 999px;
+
+            background: #ffffff;
+
+            cursor: pointer;
+
+            user-select: none;
+
+            min-width: 125px;
+
+            box-shadow:
+                0 2px 8px
+                rgba(15, 23, 42, 0.04);
+
+        }
+
+
+        .user-menu summary::-webkit-details-marker {
+
+            display: none;
+
+        }
+
+
+        .user-avatar {
+
+            width: 32px;
+
+            height: 32px;
+
+            min-width: 32px;
+
+            border-radius: 50%;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            background: #eef3ff;
+
+            color: #3563e9;
+
+            font-size: 15px;
+
+            font-weight: 800;
+
+        }
+
+
+        .user-menu-name {
+
+            max-width: 115px;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+
+            white-space: nowrap;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+            color: #172033;
+
+        }
+
+
+        .user-menu-arrow {
+
+            margin-left: auto;
+
+            color: #7a8494;
+
+            font-size: 12px;
+
+        }
+
+
+        .user-dropdown {
+
+            position: absolute;
+
+            top: calc(100% + 8px);
+
+            right: 0;
+
+            width: 235px;
+
+            background: #ffffff;
+
+            border: 1px solid #e4e8ef;
+
+            border-radius: 14px;
+
+            padding: 8px;
+
+            box-shadow:
+                0 18px 40px
+                rgba(15, 23, 42, 0.14);
+
+        }
+
+
+        .user-dropdown-head {
+
+            padding:
+                9px 10px 11px;
+
+            border-bottom:
+                1px solid #edf0f5;
+
+            margin-bottom: 5px;
+
+        }
+
+
+        .user-dropdown-head strong {
+
+            display: block;
+
+            font-size: 13px;
+
+            color: #172033;
+
+        }
+
+
+        .user-dropdown-head span {
+
+            display: block;
+
+            margin-top: 3px;
+
+            font-size: 12px;
+
+            color: #7a8494;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+
+            white-space: nowrap;
+
+        }
+
+
+        .user-dropdown a {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 9px;
+
+            padding: 10px;
+
+            border-radius: 9px;
+
+            color: #263247;
+
+            text-decoration: none;
+
+            font-size: 13px;
+
+            font-weight: 600;
+
+        }
+
+
+        .user-dropdown a:hover {
+
+            background: #f4f7fb;
+
+        }
+
+
+        .user-dropdown a.logout-link {
+
+            color: #c62828;
+
+        }
+
+
+        /* =====================================================
+           MOBILE
+           ===================================================== */
 
         @media (max-width: 1100px) {
 
             .dashboard-board {
 
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns:
+                    1fr 1fr;
 
                 grid-template-rows:
                     400px
                     340px
                     280px;
-
-                grid-template-areas:
-
-                    "spending categories"
-
-                    "recurring unusual"
-
-                    "goals budget";
 
                 gap: 16px;
 
@@ -436,10 +585,6 @@
 
         }
 
-
-        /* =================================================
-           SMALL TABLET / MOBILE
-           ================================================= */
 
         @media (max-width: 800px) {
 
@@ -454,7 +599,8 @@
             }
 
 
-            .dashboard-board .dashboard-panel {
+            .dashboard-board
+            .dashboard-panel {
 
                 height: 360px;
 
@@ -471,7 +617,6 @@
 
 
             .dashboard-goals,
-
             .dashboard-budget {
 
                 height: 300px !important;
@@ -483,11 +628,48 @@
         }
 
 
-        /* =================================================
-           PHONE
-           ================================================= */
-
         @media (max-width: 500px) {
+
+            .header-actions {
+
+                gap: 7px;
+
+            }
+
+
+            .header-status {
+
+                padding:
+                    8px 10px;
+
+                font-size: 11px;
+
+            }
+
+
+            .user-menu summary {
+
+                min-width: auto;
+
+                padding-right: 8px;
+
+            }
+
+
+            .user-menu-name,
+            .user-menu-arrow {
+
+                display: none;
+
+            }
+
+
+            .user-dropdown {
+
+                width: 215px;
+
+            }
+
 
             .dashboard-board {
 
@@ -496,7 +678,8 @@
             }
 
 
-            .dashboard-board .dashboard-panel {
+            .dashboard-board
+            .dashboard-panel {
 
                 height: 340px;
 
@@ -515,7 +698,6 @@
 
 
             .dashboard-goals,
-
             .dashboard-budget {
 
                 height: 290px !important;
@@ -549,7 +731,6 @@
             <div class="brand-logo">
                 F
             </div>
-
 
             <div>
 
@@ -621,14 +802,11 @@
 
         <div class="sidebar-footer">
 
-
             <div class="sidebar-ai">
-
 
                 <div class="ai-icon">
                     ✦
                 </div>
-
 
                 <div>
 
@@ -642,9 +820,7 @@
 
                 </div>
 
-
             </div>
-
 
         </div>
 
@@ -673,7 +849,6 @@
                     Financial Dashboard
                 </h1>
 
-
                 <p>
                     Understand your money, spending and financial goals.
                 </p>
@@ -681,11 +856,88 @@
             </div>
 
 
-            <div class="header-status">
+            <div class="header-actions">
 
-                <span class="status-dot"></span>
 
-                FinPilot is ready
+                <div class="header-status">
+
+                    <span class="status-dot"></span>
+
+                    FinPilot is ready
+
+                </div>
+
+
+                <!-- USER MENU -->
+
+                <details class="user-menu">
+
+
+                    <summary>
+
+                        <span class="user-avatar">
+                            👤
+                        </span>
+
+
+                        <span class="user-menu-name">
+
+                            {{ session.get('user_name', 'User') }}
+
+                        </span>
+
+
+                        <span class="user-menu-arrow">
+                            ▾
+                        </span>
+
+                    </summary>
+
+
+                    <div class="user-dropdown">
+
+
+                        <div class="user-dropdown-head">
+
+                            <strong>
+
+                                {{ session.get('user_name', 'User') }}
+
+                            </strong>
+
+
+                            <span>
+
+                                {{ session.get('user_email', '') }}
+
+                            </span>
+
+                        </div>
+
+
+                        <a href="/profile">
+
+                            👤
+                            Profile
+
+                        </a>
+
+
+                        <a
+                            href="/logout"
+                            class="logout-link">
+
+                            ↪
+                            Logout
+
+                        </a>
+
+
+                    </div>
+
+
+                </details>
+
 
             </div>
 
@@ -725,15 +977,21 @@
                     <div class="supported-files">
 
                         <span>CSV</span>
+
                         <span>XLSX</span>
+
                         <span>PDF</span>
+
                         <span>DOCX</span>
+
                         <span>JPG</span>
+
                         <span>PNG</span>
 
                     </div>
 
                 </div>
+
 
             </div>
 
@@ -958,15 +1216,13 @@
 
 
         <!-- =================================================
-             FINAL FIXED-HEIGHT DASHBOARD BOARD
+             DASHBOARD BOARD
              ================================================= -->
 
         <section class="dashboard-board">
 
 
-            <!-- =================================================
-                 SPENDING OVERVIEW
-                 ================================================= -->
+            <!-- SPENDING -->
 
             <section
                 class="panel dashboard-panel dashboard-spending">
@@ -974,20 +1230,17 @@
 
                 <div class="panel-header">
 
-
                     <div>
 
                         <h2>
                             Spending Overview
                         </h2>
 
-
                         <p>
                             Where your money is going
                         </p>
 
                     </div>
-
 
                 </div>
 
@@ -998,6 +1251,21 @@
                         id="spendingChart">
                     </canvas>
 
+
+                    <div
+                        id="chartEmpty"
+                        class="chart-empty">
+
+                        <strong>
+                            No spending data
+                        </strong>
+
+                        <span>
+                            Upload transactions to see the chart.
+                        </span>
+
+                    </div>
+
                 </div>
 
 
@@ -1005,9 +1273,7 @@
 
 
 
-            <!-- =================================================
-                 TOP CATEGORIES
-                 ================================================= -->
+            <!-- TOP CATEGORIES -->
 
             <section
                 class="panel dashboard-panel dashboard-categories">
@@ -1015,13 +1281,11 @@
 
                 <div class="panel-header">
 
-
                     <div>
 
                         <h2>
                             Top Categories
                         </h2>
-
 
                         <p>
                             Your biggest spending areas
@@ -1029,17 +1293,14 @@
 
                     </div>
 
-
                 </div>
 
 
                 <div class="dashboard-scroll">
 
-
                     <div
                         id="categoriesList"
                         class="category-list">
-
 
                         <div class="empty-state">
 
@@ -1047,9 +1308,7 @@
 
                         </div>
 
-
                     </div>
-
 
                 </div>
 
@@ -1058,9 +1317,7 @@
 
 
 
-            <!-- =================================================
-                 RECURRING PAYMENTS
-                 ================================================= -->
+            <!-- RECURRING -->
 
             <section
                 class="panel dashboard-panel dashboard-recurring">
@@ -1068,13 +1325,11 @@
 
                 <div class="panel-header">
 
-
                     <div>
 
                         <h2>
                             Recurring Payments
                         </h2>
-
 
                         <p>
                             Subscriptions and repeated expenses
@@ -1082,17 +1337,14 @@
 
                     </div>
 
-
                 </div>
 
 
                 <div class="dashboard-scroll">
 
-
                     <div
                         id="recurringList"
                         class="recurring-list">
-
 
                         <div class="empty-state">
 
@@ -1100,9 +1352,7 @@
 
                         </div>
 
-
                     </div>
-
 
                 </div>
 
@@ -1111,9 +1361,7 @@
 
 
 
-            <!-- =================================================
-                 UNUSUAL SPENDING
-                 ================================================= -->
+            <!-- UNUSUAL -->
 
             <section
                 class="panel dashboard-panel dashboard-unusual">
@@ -1121,13 +1369,11 @@
 
                 <div class="panel-header">
 
-
                     <div>
 
                         <h2>
                             Unusual Spending
                         </h2>
-
 
                         <p>
                             Transactions that stand out
@@ -1135,17 +1381,14 @@
 
                     </div>
 
-
                 </div>
 
 
                 <div class="dashboard-scroll">
 
-
                     <div
                         id="unusualList"
                         class="unusual-list">
-
 
                         <div class="empty-state">
 
@@ -1153,9 +1396,7 @@
 
                         </div>
 
-
                     </div>
-
 
                 </div>
 
@@ -1164,9 +1405,7 @@
 
 
 
-            <!-- =================================================
-                 GOAL IMPACT
-                 ================================================= -->
+            <!-- GOAL IMPACT -->
 
             <section
                 class="panel dashboard-panel dashboard-goals">
@@ -1174,13 +1413,11 @@
 
                 <div class="panel-header">
 
-
                     <div>
 
                         <h2>
                             Goal Impact
                         </h2>
-
 
                         <p>
                             See how your current savings affect your goals.
@@ -1197,7 +1434,6 @@
 
                     </a>
 
-
                 </div>
 
 
@@ -1205,13 +1441,11 @@
                     id="goalImpact"
                     class="goal-impact-container">
 
-
                     <div class="empty-state">
 
                         Loading goal impact...
 
                     </div>
-
 
                 </div>
 
@@ -1220,9 +1454,7 @@
 
 
 
-            <!-- =================================================
-                 BUDGET VS ACTUAL
-                 ================================================= -->
+            <!-- BUDGET VS ACTUAL -->
 
             <section
                 class="panel dashboard-panel dashboard-budget">
@@ -1230,13 +1462,11 @@
 
                 <div class="panel-header">
 
-
                     <div>
 
                         <h2>
                             Budget vs Actual
                         </h2>
-
 
                         <p>
                             Compare your planned budget with actual spending.
@@ -1253,7 +1483,6 @@
 
                     </a>
 
-
                 </div>
 
 
@@ -1261,13 +1490,11 @@
                     id="budgetAnalysis"
                     class="budget-analysis-container">
 
-
                     <div class="empty-state">
 
                         No budgets created yet.
 
                     </div>
-
 
                 </div>
 
@@ -1291,20 +1518,17 @@
 
                 <div class="panel-header">
 
-
                     <div>
 
                         <h2>
                             Monthly Spending
                         </h2>
 
-
                         <p>
                             Track how your expenses change over time.
                         </p>
 
                     </div>
-
 
                 </div>
 
@@ -1313,13 +1537,11 @@
                     id="monthlySpending"
                     class="monthly-list">
 
-
                     <div class="empty-state">
 
                         No monthly data available.
 
                     </div>
-
 
                 </div>
 
@@ -1343,13 +1565,11 @@
 
                 <div class="panel-header">
 
-
                     <div>
 
                         <h2>
                             Recent Transactions
                         </h2>
-
 
                         <p>
                             Your latest financial activity.
@@ -1366,7 +1586,6 @@
 
                     </a>
 
-
                 </div>
 
 
@@ -1374,13 +1593,11 @@
                     id="recentTransactions"
                     class="recent-transactions">
 
-
                     <div class="empty-state">
 
                         No transactions available.
 
                     </div>
-
 
                 </div>
 
@@ -1396,7 +1613,8 @@
              AI ASSISTANT
              ================================================= -->
 
-        <section class="ai-assistant-panel dashboard-ai-section">
+        <section
+            class="ai-assistant-panel dashboard-ai-section">
 
 
             <div class="ai-assistant-header">
@@ -1416,7 +1634,6 @@
                             Ask FinPilot
                         </h2>
 
-
                         <p>
                             Ask questions about your finances or manage your data.
                         </p>
@@ -1430,8 +1647,6 @@
             </div>
 
 
-
-            <!-- QUICK QUESTIONS -->
 
             <div class="quick-questions">
 
@@ -1490,8 +1705,6 @@
 
 
 
-            <!-- MESSAGES -->
-
             <div
                 id="assistantMessages"
                 class="assistant-messages">
@@ -1509,13 +1722,10 @@
 
                         Hi! I'm FinPilot.
 
-
                         <br><br>
-
 
                         Ask me anything about your spending,
                         savings, budgets or goals.
-
 
                     </div>
 
@@ -1526,8 +1736,6 @@
             </div>
 
 
-
-            <!-- INPUT -->
 
             <div class="assistant-input-area">
 
@@ -1562,16 +1770,13 @@
 
         <footer class="dashboard-footer">
 
-
             <span>
                 FinPilot © 2026
             </span>
 
-
             <span>
                 Personal Finance Decision Support
             </span>
-
 
         </footer>
 
@@ -1583,9 +1788,35 @@
 
 
 
-<!-- =========================================================
-     DASHBOARD JS
-     ========================================================= -->
+<script>
+
+    /*
+       Keep user menu open/close natural using <details>.
+       Clicking outside closes it.
+    */
+
+    document.addEventListener(
+        "click",
+        function(event) {
+
+            const menu =
+                document.querySelector(
+                    ".user-menu"
+                );
+
+            if (!menu) {
+                return;
+            }
+
+            if (!menu.contains(event.target)) {
+                menu.removeAttribute("open");
+            }
+
+        }
+    );
+
+</script>
+
 
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 
