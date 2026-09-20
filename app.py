@@ -422,74 +422,346 @@ def upload_file():
 
         transactions = []
         analysis = None
+        save_transactions = []
 
+        # ----------------------------------------------------
         # CSV / EXCEL
+        # ----------------------------------------------------
+        #
+        # IMPORTANT:
+        # analyze_file() already returns normalized statement
+        # records using:
+        #   Date, Description, Amount, Category
+        #
+        # Do NOT pass those records through
+        # ai_transactions_to_dataframe(), because that helper
+        # expects lowercase AI fields and would turn the amounts
+        # into zero.
+        #
         if extension in {"csv", "xlsx", "xls"}:
 
             analysis = analyze_file(filepath)
 
             if isinstance(analysis, dict):
+
                 transactions = analysis.get(
                     "transactions",
                     []
                 )
 
+                for transaction in transactions:
+
+                    raw_amount = transaction.get(
+                        "Amount",
+                        0
+                    )
+
+                    try:
+                        amount = float(
+                            raw_amount
+                        )
+                    except Exception:
+                        amount = 0.0
+
+                    transaction_type = (
+                        "income"
+                        if amount > 0
+                        else "expense"
+                    )
+
+                    save_transactions.append({
+
+                        "date":
+                            str(
+                                transaction.get(
+                                    "Date",
+                                    ""
+                                )
+                            ),
+
+                        "description":
+                            str(
+                                transaction.get(
+                                    "Description",
+                                    ""
+                                )
+                            ).strip(),
+
+                        "amount":
+                            amount,
+
+                        "category":
+                            transaction.get(
+                                "Category",
+                                "Other"
+                            ),
+
+                        "type":
+                            transaction_type
+
+                    })
+
+        # ----------------------------------------------------
         # PDF
+        # ----------------------------------------------------
         elif extension == "pdf":
 
-            text = extract_pdf_text(filepath)
-            extracted = extract_from_text(text)
+            text = extract_pdf_text(
+                filepath
+            )
+
+            extracted = extract_from_text(
+                text
+            )
+
             transactions = extracted.get(
                 "transactions",
                 []
             )
 
-        # DOCX
-        elif extension == "docx":
+            if transactions:
 
-            text = extract_docx_text(filepath)
-            extracted = extract_from_text(text)
-            transactions = extracted.get(
-                "transactions",
-                []
-            )
+                dataframe = ai_transactions_to_dataframe(
+                    transactions
+                )
 
-        # IMAGE
-        elif extension in {"png", "jpg", "jpeg"}:
-
-            extracted = extract_from_image(filepath)
-            transactions = extracted.get(
-                "transactions",
-                []
-            )
-
-        # SAVE TRANSACTIONS
-        if transactions:
-
-            dataframe = ai_transactions_to_dataframe(
-                transactions
-            )
-
-            save_result = add_transactions(
-                dataframe
-            )
-
-            # Keep the upload response useful for duplicate testing.
-            if isinstance(save_result, dict):
-                added_count = save_result.get("added", 0)
-                skipped_count = save_result.get("skipped", 0)
-            else:
-                added_count = None
-                skipped_count = None
-
-            try:
-                # Analyze the just-uploaded statement for the UI response.
                 analysis = analyze_dataframe(
                     dataframe
                 )
-            except Exception:
-                pass
+
+                for row in dataframe.to_dict(
+                    orient="records"
+                ):
+
+                    amount = float(
+                        row.get(
+                            "Amount",
+                            0
+                        ) or 0
+                    )
+
+                    save_transactions.append({
+
+                        "date":
+                            str(
+                                row.get(
+                                    "Date",
+                                    ""
+                                )
+                            ),
+
+                        "description":
+                            str(
+                                row.get(
+                                    "Description",
+                                    ""
+                                )
+                            ).strip(),
+
+                        "amount":
+                            amount,
+
+                        "category":
+                            row.get(
+                                "Category",
+                                "Other"
+                            ),
+
+                        "type":
+                            (
+                                "income"
+                                if amount > 0
+                                else "expense"
+                            )
+
+                    })
+
+        # ----------------------------------------------------
+        # DOCX
+        # ----------------------------------------------------
+        elif extension == "docx":
+
+            text = extract_docx_text(
+                filepath
+            )
+
+            extracted = extract_from_text(
+                text
+            )
+
+            transactions = extracted.get(
+                "transactions",
+                []
+            )
+
+            if transactions:
+
+                dataframe = ai_transactions_to_dataframe(
+                    transactions
+                )
+
+                analysis = analyze_dataframe(
+                    dataframe
+                )
+
+                for row in dataframe.to_dict(
+                    orient="records"
+                ):
+
+                    amount = float(
+                        row.get(
+                            "Amount",
+                            0
+                        ) or 0
+                    )
+
+                    save_transactions.append({
+
+                        "date":
+                            str(
+                                row.get(
+                                    "Date",
+                                    ""
+                                )
+                            ),
+
+                        "description":
+                            str(
+                                row.get(
+                                    "Description",
+                                    ""
+                                )
+                            ).strip(),
+
+                        "amount":
+                            amount,
+
+                        "category":
+                            row.get(
+                                "Category",
+                                "Other"
+                            ),
+
+                        "type":
+                            (
+                                "income"
+                                if amount > 0
+                                else "expense"
+                            )
+
+                    })
+
+        # ----------------------------------------------------
+        # IMAGE
+        # ----------------------------------------------------
+        elif extension in {
+            "png",
+            "jpg",
+            "jpeg"
+        }:
+
+            extracted = extract_from_image(
+                filepath
+            )
+
+            transactions = extracted.get(
+                "transactions",
+                []
+            )
+
+            if transactions:
+
+                dataframe = ai_transactions_to_dataframe(
+                    transactions
+                )
+
+                analysis = analyze_dataframe(
+                    dataframe
+                )
+
+                for row in dataframe.to_dict(
+                    orient="records"
+                ):
+
+                    amount = float(
+                        row.get(
+                            "Amount",
+                            0
+                        ) or 0
+                    )
+
+                    save_transactions.append({
+
+                        "date":
+                            str(
+                                row.get(
+                                    "Date",
+                                    ""
+                                )
+                            ),
+
+                        "description":
+                            str(
+                                row.get(
+                                    "Description",
+                                    ""
+                                )
+                            ).strip(),
+
+                        "amount":
+                            amount,
+
+                        "category":
+                            row.get(
+                                "Category",
+                                "Other"
+                            ),
+
+                        "type":
+                            (
+                                "income"
+                                if amount > 0
+                                else "expense"
+                            )
+
+                    })
+
+        # ----------------------------------------------------
+        # SAVE TRANSACTIONS
+        # ----------------------------------------------------
+
+        if save_transactions:
+
+            save_result = add_transactions(
+                save_transactions
+            )
+
+            if isinstance(
+                save_result,
+                dict
+            ):
+
+                added_count = int(
+                    save_result.get(
+                        "added",
+                        0
+                    )
+                )
+
+                skipped_count = int(
+                    save_result.get(
+                        "skipped",
+                        0
+                    )
+                )
+
+            else:
+
+                added_count = 0
+                skipped_count = 0
+
         else:
+
             added_count = 0
             skipped_count = 0
 
