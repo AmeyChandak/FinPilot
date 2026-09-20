@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 
@@ -225,6 +226,8 @@ def normalize_transactions(df):
         errors="coerce"
     )
 
+    # Remove invalid dates
+
     df = df.dropna(
         subset=["Date"]
     )
@@ -308,18 +311,36 @@ def normalize_transactions(df):
 
 def load_statement(filepath):
 
-    filepath = str(
-        filepath
-    ).lower()
+    # IMPORTANT:
+    # Keep the original file path unchanged.
+    # Render/Linux is case-sensitive.
+    #
+    # WRONG:
+    # filepath = str(filepath).lower()
+    #
+    # That can convert:
+    # FinPilot_demo_transactions.csv
+    #
+    # into:
+    # finpilot_demo_transactions.csv
+    #
+    # which causes FileNotFoundError.
 
-    if filepath.endswith(".csv"):
+    filepath = str(filepath)
+
+    extension = os.path.splitext(
+        filepath
+    )[1].lower()
+
+    if extension == ".csv":
 
         df = pd.read_csv(
             filepath
         )
 
-    elif filepath.endswith(
-        (".xlsx", ".xls")
+    elif extension in (
+        ".xlsx",
+        ".xls"
     ):
 
         df = pd.read_excel(
@@ -329,552 +350,13 @@ def load_statement(filepath):
     else:
 
         raise ValueError(
-            "Unsupported spreadsheet format."
+            "Unsupported spreadsheet format. "
+            "Please use CSV, XLSX or XLS."
         )
 
     return normalize_transactions(
         df
     )
-
-
-# ==========================================
-# RECURRING PAYMENT DETECTION
-# ==========================================
-
-def detect_recurring(expense_df):
-
-    recurring = []
-
-    if len(expense_df) == 0:
-        return recurring
-
-    grouped = (
-        expense_df
-        .groupby("Description")
-    )
-
-    for description, group in grouped:
-
-        if len(group) >= 2:
-
-            average_amount = (
-                group["ExpenseAmount"]
-                .mean()
-            )
-
-            recurring.append({
-
-                "description":
-                    str(description),
-
-                "amount":
-                    round(
-                        float(
-                            average_amount
-                        ),
-                        2
-                    ),
-
-                "payments":
-                    int(len(group))
-
-            })
-
-    recurring = sorted(
-        recurring,
-        key=lambda x: x["amount"],
-        reverse=True
-    )
-
-    return recurring
-
-
-# ==========================================
-# UNUSUAL SPENDING DETECTION
-# ==========================================
-
-def detect_unusual(expense_df):
-
-    unusual = []
-
-    if len(expense_df) == 0:
-        return unusual
-
-    for category, group in (
-        expense_df
-        .groupby("Category")
-    ):
-
-        if len(group) < 2:
-            continue
-
-        average = (
-            group["ExpenseAmount"]
-            .mean()
-        )
-
-        # A transaction more than
-        # 2x the category average
-        threshold = average * 2
-
-        unusual_rows = group[
-            group["ExpenseAmount"]
-            > threshold
-        ]
-
-        for _, row in unusual_rows.iterrows():
-
-            unusual.append({
-
-                "description":
-                    str(
-                        row["Description"]
-                    ),
-
-                "amount":
-                    round(
-                        float(
-                            row["ExpenseAmount"]
-                        ),
-                        2
-                    ),
-
-                "category":
-                    str(category),
-
-                "average":
-                    round(
-                        float(average),
-                        2
-                    ),
-
-                "reason":
-                    "Spending is more than 2x the category average."
-
-            })
-
-    return unusual
-
-
-# ==========================================
-# SMART FINANCIAL INSIGHTS
-# ==========================================
-
-def generate_insights(
-    df,
-    income,
-    expenses,
-    savings,
-    savings_rate,
-    category_spending,
-    recurring,
-    unusual,
-    monthly_spending
-):
-
-    insights = []
-
-    # --------------------------------------
-    # NO DATA
-    # --------------------------------------
-
-    if len(df) == 0:
-
-        return [{
-            "type": "info",
-            "title": "No financial data yet",
-            "message":
-                "Upload transactions to generate personalized financial insights.",
-            "priority": "low"
-        }]
-
-
-    # --------------------------------------
-    # SAVINGS RATE
-    # --------------------------------------
-
-    if income > 0:
-
-        if savings_rate < 10:
-
-            insights.append({
-
-                "type": "warning",
-
-                "title":
-                    "Low savings rate",
-
-                "message":
-                    f"Your current savings rate is {savings_rate:.1f}%. "
-                    "A large portion of your income is being spent.",
-
-                "priority":
-                    "high"
-
-            })
-
-        elif savings_rate < 20:
-
-            insights.append({
-
-                "type": "info",
-
-                "title":
-                    "Savings could improve",
-
-                "message":
-                    f"You are currently saving {savings_rate:.1f}% of your income.",
-
-                "priority":
-                    "medium"
-
-            })
-
-        else:
-
-            insights.append({
-
-                "type": "positive",
-
-                "title":
-                    "Healthy savings pattern",
-
-                "message":
-                    f"Your current savings rate is {savings_rate:.1f}% of income.",
-
-                "priority":
-                    "low"
-
-            })
-
-
-    # --------------------------------------
-    # TOP SPENDING CATEGORY
-    # --------------------------------------
-
-    if category_spending:
-
-        top_category = max(
-            category_spending,
-            key=category_spending.get
-        )
-
-        top_amount = float(
-            category_spending[
-                top_category
-            ]
-        )
-
-        percentage = 0
-
-        if expenses > 0:
-
-            percentage = (
-                top_amount /
-                expenses
-            ) * 100
-
-        insights.append({
-
-            "type":
-                "info",
-
-            "title":
-                f"Highest spending: {top_category}",
-
-            "message":
-                f"{top_category} accounts for "
-                f"{percentage:.1f}% of your total expenses "
-                f"with spending of ₹{top_amount:,.2f}.",
-
-            "priority":
-                "medium"
-
-        })
-
-
-    # --------------------------------------
-    # HIGH FOOD SPENDING
-    # --------------------------------------
-
-    food_spending = (
-        category_spending
-        .get("Food", 0)
-    )
-
-    if expenses > 0 and food_spending > 0:
-
-        food_percentage = (
-            food_spending /
-            expenses
-        ) * 100
-
-        if food_percentage >= 20:
-
-            insights.append({
-
-                "type":
-                    "warning",
-
-                "title":
-                    "Food spending is significant",
-
-                "message":
-                    f"Food expenses are ₹{food_spending:,.2f}, "
-                    f"which is {food_percentage:.1f}% of total spending.",
-
-                "priority":
-                    "medium"
-
-            })
-
-
-    # --------------------------------------
-    # HIGH SHOPPING SPENDING
-    # --------------------------------------
-
-    shopping_spending = (
-        category_spending
-        .get("Shopping", 0)
-    )
-
-    if expenses > 0 and shopping_spending > 0:
-
-        shopping_percentage = (
-            shopping_spending /
-            expenses
-        ) * 100
-
-        if shopping_percentage >= 20:
-
-            insights.append({
-
-                "type":
-                    "warning",
-
-                "title":
-                    "Shopping spending is significant",
-
-                "message":
-                    f"Shopping expenses are ₹{shopping_spending:,.2f}, "
-                    f"representing {shopping_percentage:.1f}% "
-                    "of total expenses.",
-
-                "priority":
-                    "medium"
-
-            })
-
-
-    # --------------------------------------
-    # RECURRING PAYMENTS
-    # --------------------------------------
-
-    if recurring:
-
-        recurring_total = sum(
-
-            float(
-                item["amount"]
-            )
-
-            for item in recurring
-
-        )
-
-        insights.append({
-
-            "type":
-                "info",
-
-            "title":
-                "Recurring payments detected",
-
-            "message":
-                f"FinPilot detected {len(recurring)} recurring payment(s). "
-                f"Their combined average cost is approximately "
-                f"₹{recurring_total:,.2f} per payment cycle.",
-
-            "priority":
-                "medium"
-
-        })
-
-
-    # --------------------------------------
-    # UNUSUAL TRANSACTIONS
-    # --------------------------------------
-
-    if unusual:
-
-        largest_unusual = max(
-            unusual,
-            key=lambda x:
-                x["amount"]
-        )
-
-        insights.append({
-
-            "type":
-                "warning",
-
-            "title":
-                "Unusual spending detected",
-
-            "message":
-                f"{largest_unusual['description']} "
-                f"was ₹{largest_unusual['amount']:,.2f}, "
-                f"while the average {largest_unusual['category']} "
-                f"transaction is around "
-                f"₹{largest_unusual['average']:,.2f}.",
-
-            "priority":
-                "high"
-
-        })
-
-
-    # --------------------------------------
-    # MONTHLY TREND
-    # --------------------------------------
-
-    months = list(
-        monthly_spending.items()
-    )
-
-    if len(months) >= 2:
-
-        previous_month = float(
-            months[-2][1]
-        )
-
-        current_month = float(
-            months[-1][1]
-        )
-
-        if previous_month > 0:
-
-            change = (
-                (
-                    current_month -
-                    previous_month
-                )
-                /
-                previous_month
-            ) * 100
-
-
-            if change >= 20:
-
-                insights.append({
-
-                    "type":
-                        "warning",
-
-                    "title":
-                        "Spending increased",
-
-                    "message":
-                        f"Spending increased by "
-                        f"{change:.1f}% compared with "
-                        f"the previous month.",
-
-                    "priority":
-                        "high"
-
-                })
-
-
-            elif change <= -20:
-
-                insights.append({
-
-                    "type":
-                        "positive",
-
-                    "title":
-                        "Spending decreased",
-
-                    "message":
-                        f"Spending decreased by "
-                        f"{abs(change):.1f}% compared with "
-                        f"the previous month.",
-
-                    "priority":
-                        "low"
-
-                })
-
-
-    # --------------------------------------
-    # NEGATIVE SAVINGS
-    # --------------------------------------
-
-    if income > 0 and savings < 0:
-
-        insights.append({
-
-            "type":
-                "danger",
-
-            "title":
-                "Expenses exceed income",
-
-            "message":
-                f"Your expenses exceed your recorded income "
-                f"by ₹{abs(savings):,.2f}.",
-
-            "priority":
-                "high"
-
-        })
-
-
-    # --------------------------------------
-    # POSITIVE CASH FLOW
-    # --------------------------------------
-
-    if income > 0 and savings > 0:
-
-        insights.append({
-
-            "type":
-                "positive",
-
-            "title":
-                "Positive cash flow",
-
-            "message":
-                f"You currently have positive cash flow of "
-                f"₹{savings:,.2f}.",
-
-            "priority":
-                "low"
-
-        })
-
-
-    # --------------------------------------
-    # SORT BY PRIORITY
-    # --------------------------------------
-
-    priority_order = {
-
-        "high": 1,
-        "medium": 2,
-        "low": 3
-
-    }
-
-    insights.sort(
-        key=lambda x:
-            priority_order.get(
-                x["priority"],
-                3
-            )
-    )
-
-    return insights
 
 
 # ==========================================
@@ -895,6 +377,10 @@ def analyze_dataframe(df):
             df["Date"],
             errors="coerce"
         )
+
+    # Remove rows with invalid dates
+
+    if "Date" in df.columns:
 
         df = df.dropna(
             subset=["Date"]
@@ -1024,17 +510,106 @@ def analyze_dataframe(df):
     # RECURRING PAYMENTS
     # ======================================
 
-    recurring = detect_recurring(
-        expense_df
+    recurring = []
+
+    if len(expense_df) > 0:
+
+        grouped = (
+            expense_df
+            .groupby(
+                "Description"
+            )
+        )
+
+        for description, group in grouped:
+
+            if len(group) >= 2:
+
+                average_amount = (
+                    group["ExpenseAmount"]
+                    .mean()
+                )
+
+                recurring.append({
+
+                    "description":
+                        description,
+
+                    "amount":
+                        round(
+                            average_amount,
+                            2
+                        ),
+
+                    "payments":
+                        len(group)
+
+                })
+
+    # Sort recurring
+
+    recurring = sorted(
+        recurring,
+        key=lambda x: x["amount"],
+        reverse=True
     )
 
     # ======================================
     # UNUSUAL SPENDING
     # ======================================
 
-    unusual = detect_unusual(
-        expense_df
-    )
+    unusual = []
+
+    if len(expense_df) > 0:
+
+        for category, group in (
+            expense_df
+            .groupby("Category")
+        ):
+
+            if len(group) >= 2:
+
+                average = (
+                    group["ExpenseAmount"]
+                    .mean()
+                )
+
+                threshold = (
+                    average * 2
+                )
+
+                unusual_rows = group[
+                    group["ExpenseAmount"]
+                    > threshold
+                ]
+
+                for _, row in unusual_rows.iterrows():
+
+                    unusual.append({
+
+                        "description":
+                            row["Description"],
+
+                        "amount":
+                            round(
+                                float(
+                                    row["ExpenseAmount"]
+                                ),
+                                2
+                            ),
+
+                        "category":
+                            category,
+
+                        "average":
+                            round(
+                                float(
+                                    average
+                                ),
+                                2
+                            )
+
+                    })
 
     # ======================================
     # MONTHLY SPENDING
@@ -1059,38 +634,6 @@ def analyze_dataframe(df):
             .round(2)
             .to_dict()
         )
-
-    # ======================================
-    # SMART INSIGHTS
-    # ======================================
-
-    insights = generate_insights(
-
-        df=df,
-
-        income=float(income),
-
-        expenses=float(expenses),
-
-        savings=float(savings),
-
-        savings_rate=float(
-            savings_rate
-        ),
-
-        category_spending=
-            category_spending,
-
-        recurring=
-            recurring,
-
-        unusual=
-            unusual,
-
-        monthly_spending=
-            monthly_spending
-
-    )
 
     # ======================================
     # JSON-SAFE TRANSACTIONS
@@ -1179,10 +722,6 @@ def analyze_dataframe(df):
 
         "monthly_spending":
             monthly_spending,
-
-        # NEW
-        "insights":
-            insights,
 
         "transactions":
             transaction_records
