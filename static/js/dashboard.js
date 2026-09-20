@@ -1,150 +1,131 @@
 /* ============================================================
    FINPILOT DASHBOARD
-   Real Flask + Finance Engine + Autonomous Agent
-   Production-safe frontend
+   Compatible with current dashboard.html
    ============================================================ */
 
 let financialData = null;
-let agentResult = null;
 let spendingChart = null;
+let selectedFileObject = null;
 
 
 /* ============================================================
-   INIT
+   INITIALIZE
    ============================================================ */
 
 document.addEventListener("DOMContentLoaded", function () {
 
-    setupFileUpload();
-    setupAgentChat();
-    setupNavigation();
+    setupFilePicker();
+    setupQuickQuestions();
+    setupAssistant();
 
-    /*
-     * Load existing database data when dashboard opens.
-     */
     loadDashboardData();
+    loadGoalImpact();
+    loadBudgetAnalysis();
 
-    /*
-     * Render locally stored goals if the element exists.
-     */
-    renderGoals();
-
-    console.log("FinPilot dashboard ready.");
+    console.log("FinPilot dashboard loaded.");
 
 });
 
 
 /* ============================================================
-   LOAD DASHBOARD DATA
+   FILE PICKER
    ============================================================ */
 
-async function loadDashboardData() {
-
-    try {
-
-        setDataStatus("Loading data...");
-
-        const response = await fetch(
-            "/api/dashboard",
-            {
-                method: "GET"
-            }
-        );
-
-        const rawData = await safeJson(response);
-
-        if (!response.ok) {
-
-            throw new Error(
-                rawData.error ||
-                "Could not load dashboard data."
-            );
-
-        }
-
-        const data =
-            normalizeDashboardResponse(rawData);
-
-        financialData = data;
-
-        /*
-         * Render existing database data.
-         */
-        renderFinancialOverview(data);
-        renderSpending(data);
-        renderBudgets(data);
-        renderTransactions(data);
-        renderRecurring(data);
-        renderUnusual(data);
-
-        /*
-         * Existing data status.
-         */
-        if (Number(data.transaction_count || 0) > 0) {
-
-            setDataStatus("Data loaded");
-
-            showUploadStatus(
-                `${data.transaction_count} transaction(s) loaded from your data.`
-            );
-
-        } else {
-
-            setDataStatus("No data loaded");
-
-        }
-
-    } catch (error) {
-
-        console.error(
-            "Dashboard load error:",
-            error
-        );
-
-        setDataStatus("No data loaded");
-
-    }
-
-}
-
-
-/* ============================================================
-   FILE UPLOAD
-   ============================================================ */
-
-function setupFileUpload() {
+function setupFilePicker() {
 
     const fileInput =
-        document.getElementById(
-            "statementFile"
-        );
+        document.getElementById("fileInput");
+
+    const uploadButton =
+        document.getElementById("uploadBtn");
+
+    const selectedFile =
+        document.getElementById("selectedFile");
+
 
     if (!fileInput) {
 
         console.error(
-            "statementFile input not found."
+            "fileInput not found."
         );
 
         return;
     }
 
+
+    /*
+     * When user selects a file:
+     * DO NOT upload automatically.
+     *
+     * Just show the filename.
+     */
+
     fileInput.addEventListener(
         "change",
-        async function (event) {
+        function () {
 
             const file =
-                event.target.files[0];
+                fileInput.files &&
+                fileInput.files[0];
+
 
             if (!file) {
+
+                selectedFileObject =
+                    null;
+
+                if (selectedFile) {
+
+                    selectedFile.style.display =
+                        "none";
+
+                    selectedFile.textContent =
+                        "";
+
+                }
+
                 return;
             }
 
-            await uploadStatement(file);
 
-            /*
-             * Allow the same file to be selected again.
-             */
-            fileInput.value = "";
+            selectedFileObject =
+                file;
+
+
+            if (selectedFile) {
+
+                selectedFile.style.display =
+                    "block";
+
+                selectedFile.innerHTML = `
+
+                    <strong>
+                        Selected file:
+                    </strong>
+
+                    <span>
+                        ${escapeHTML(file.name)}
+                    </span>
+
+                `;
+
+            }
+
+
+            if (uploadButton) {
+
+                uploadButton.disabled =
+                    false;
+
+                uploadButton.textContent =
+                    "Analyze Statement";
+
+            }
+
+
+            showUploadStatus(
+                `File selected: ${file.name}`
+            );
 
         }
     );
@@ -152,28 +133,79 @@ function setupFileUpload() {
 }
 
 
-async function uploadStatement(file) {
+/* ============================================================
+   UPLOAD / ANALYZE STATEMENT
+   ============================================================ */
+
+async function uploadStatement() {
+
+    const fileInput =
+        document.getElementById("fileInput");
+
+    const uploadButton =
+        document.getElementById("uploadBtn");
+
+
+    if (!fileInput) {
+
+        alert(
+            "File picker is not available."
+        );
+
+        return;
+    }
+
+
+    const file =
+        selectedFileObject ||
+        (
+            fileInput.files &&
+            fileInput.files[0]
+        );
+
+
+    if (!file) {
+
+        alert(
+            "Please choose a file first."
+        );
+
+        return;
+    }
+
+
+    /*
+     * Supported formats.
+     */
 
     const extension =
         file.name
-            .toLowerCase()
             .split(".")
-            .pop();
+            .pop()
+            .toLowerCase();
 
-    const allowedExtensions = [
-        "csv",
-        "xlsx",
-        "xls"
-    ];
+
+    const allowed =
+        [
+            "csv",
+            "xlsx",
+            "xls",
+            "pdf",
+            "docx",
+            "jpg",
+            "jpeg",
+            "png"
+        ];
+
 
     if (
-        !allowedExtensions.includes(
+        !allowed.includes(
             extension
         )
     ) {
 
         showUploadStatus(
-            "Only CSV and Excel files are supported.",
+            "Unsupported file format.",
             true
         );
 
@@ -181,14 +213,34 @@ async function uploadStatement(file) {
     }
 
 
+    /*
+     * UI state.
+     */
+
+    if (uploadButton) {
+
+        uploadButton.disabled =
+            true;
+
+        uploadButton.textContent =
+            "Analyzing...";
+
+    }
+
+
     showUploadStatus(
-        "Uploading and analyzing your statement..."
+        "Uploading and analyzing your financial statement..."
     );
+
 
     setDataStatus(
         "Processing"
     );
 
+
+    /*
+     * FormData.
+     */
 
     const formData =
         new FormData();
@@ -205,49 +257,56 @@ async function uploadStatement(file) {
             await fetch(
                 "/upload",
                 {
-                    method: "POST",
-                    body: formData
+
+                    method:
+                        "POST",
+
+                    body:
+                        formData
+
                 }
             );
 
 
-        const rawData =
-            await safeJson(response);
+        const data =
+            await safeJson(
+                response
+            );
 
 
         if (!response.ok) {
 
             throw new Error(
-                rawData.error ||
-                "Could not process the statement."
+                data.error ||
+                "Could not analyze the statement."
             );
 
         }
 
 
         /*
-         * VERY IMPORTANT:
-         *
-         * Backend returns:
+         * Backend response contains:
          *
          * {
-         *   success: true,
-         *   analysis: {
-         *      income: ...
-         *   }
+         *     success: true,
+         *     message: "...",
+         *     filename: "...",
+         *     analysis: {...}
          * }
-         *
-         * Normalize it into flat frontend format.
          */
 
-        financialData =
-            normalizeDashboardResponse(
-                rawData
+        const analysis =
+            normalizeAnalysisResponse(
+                data
             );
 
 
+        financialData =
+            analysis;
+
+
         /*
-         * Render REAL values.
+         * Render upload result immediately.
          */
 
         renderFinancialOverview(
@@ -258,11 +317,7 @@ async function uploadStatement(file) {
             financialData
         );
 
-        renderBudgets(
-            financialData
-        );
-
-        renderTransactions(
+        renderCategories(
             financialData
         );
 
@@ -274,47 +329,85 @@ async function uploadStatement(file) {
             financialData
         );
 
+        renderMonthlySpending(
+            financialData
+        );
+
+        renderTransactions(
+            financialData
+        );
+
+
+        /*
+         * Success message.
+         */
+
+        const added =
+            Number(
+                data.added ||
+                0
+            );
+
+
+        const skipped =
+            Number(
+                data.skipped ||
+                0
+            );
+
+
+        let message =
+            data.message ||
+            `${file.name} analyzed successfully.`;
+
+
+        if (
+            added > 0 ||
+            skipped > 0
+        ) {
+
+            message +=
+                ` Added: ${added}.` +
+                ` Skipped duplicates: ${skipped}.`;
+
+        }
+
+
+        showUploadStatus(
+            message
+        );
+
 
         setDataStatus(
             "Data loaded"
         );
 
 
-        let statusMessage =
-            `${file.name} processed successfully.`;
+        /*
+         * Show AI result block.
+         */
 
-        if (
-            Number.isFinite(
-                Number(rawData.added)
-            ) ||
-            Number.isFinite(
-                Number(rawData.skipped)
-            )
-        ) {
-
-            statusMessage +=
-                ` Added: ${Number(rawData.added || 0)},` +
-                ` skipped: ${Number(rawData.skipped || 0)}.`;
-
-        }
-
-        showUploadStatus(
-            statusMessage
+        showAIResult(
+            message
         );
 
 
         /*
-         * Automatically run autonomous agent.
-         */
-
-        await runAutonomousAgent();
-
-
-        /*
-         * Refresh dashboard from database after upload.
+         * Refresh database-backed sections.
          */
 
         await loadDashboardData();
+
+        await loadGoalImpact();
+
+        await loadBudgetAnalysis();
+
+
+        /*
+         * Run the autonomous agent.
+         */
+
+        await runAutonomousAgent();
 
 
     } catch (error) {
@@ -324,9 +417,11 @@ async function uploadStatement(file) {
             error
         );
 
+
         setDataStatus(
             "Error"
         );
+
 
         showUploadStatus(
             error.message ||
@@ -334,30 +429,65 @@ async function uploadStatement(file) {
             true
         );
 
+
+        showAIResult(
+            error.message ||
+            "Could not process the statement.",
+            true
+        );
+
+    } finally {
+
+        if (uploadButton) {
+
+            uploadButton.disabled =
+                false;
+
+            uploadButton.textContent =
+                "Analyze Statement";
+
+        }
+
     }
 
 }
 
 
 /* ============================================================
-   NORMALIZE BACKEND RESPONSE
+   NORMALIZE UPLOAD RESPONSE
    ============================================================ */
 
-function normalizeDashboardResponse(data) {
+function normalizeAnalysisResponse(
+    data
+) {
 
-    const payload =
-        data &&
-        data.analysis &&
-        typeof data.analysis === "object"
+    const source =
+        (
+            data &&
+            data.analysis &&
+            typeof data.analysis === "object"
+        )
             ? data.analysis
-            : (data || {});
+            : (
+                data ||
+                {}
+            );
+
+
+    const transactions =
+        Array.isArray(
+            source.transactions
+        )
+            ? source.transactions
+            : [];
 
 
     const normalized = {
+
         success:
             Boolean(
                 data &&
-                data.success
+                data.success !== false
             ),
 
         filename:
@@ -386,186 +516,98 @@ function normalizeDashboardResponse(data) {
                 data.skipped
                     ? data.skipped
                     : 0
+            ),
+
+        income:
+            Number(
+                source.income ||
+                0
+            ),
+
+        expenses:
+            Number(
+                source.expenses ||
+                0
+            ),
+
+        savings:
+            Number(
+                source.savings ||
+                0
+            ),
+
+        savings_rate:
+            Number(
+                source.savings_rate ||
+                0
+            ),
+
+        transaction_count:
+            Number(
+                source.transaction_count ||
+                transactions.length ||
+                0
+            ),
+
+        category_spending:
+            source.category_spending ||
+            {},
+
+        recurring:
+            Array.isArray(
+                source.recurring
             )
+                ? source.recurring
+                : [],
+
+        unusual:
+            Array.isArray(
+                source.unusual
+            )
+                ? source.unusual
+                : [],
+
+        unusual_spending:
+            Array.isArray(
+                source.unusual_spending
+            )
+                ? source.unusual_spending
+                : (
+                    Array.isArray(
+                        source.unusual
+                    )
+                        ? source.unusual
+                        : []
+                ),
+
+        monthly_spending:
+            source.monthly_spending ||
+            {},
+
+        transactions:
+            transactions,
+
+        recent_transactions:
+            Array.isArray(
+                source.recent_transactions
+            )
+                ? source.recent_transactions
+                : transactions
+                    .slice()
+                    .reverse()
+                    .slice(
+                        0,
+                        10
+                    ),
+
+        budget_progress:
+            Array.isArray(
+                source.budget_progress
+            )
+                ? source.budget_progress
+                : []
+
     };
-
-
-    /*
-     * Financial totals
-     */
-
-    normalized.income =
-        Number(
-            payload.income || 0
-        );
-
-    normalized.expenses =
-        Number(
-            payload.expenses || 0
-        );
-
-    normalized.savings =
-        Number(
-            payload.savings || 0
-        );
-
-    normalized.savings_rate =
-        Number(
-            payload.savings_rate || 0
-        );
-
-
-    /*
-     * Transaction count
-     */
-
-    normalized.transaction_count =
-        Number(
-            payload.transaction_count ||
-            (
-                Array.isArray(
-                    payload.transactions
-                )
-                    ? payload.transactions.length
-                    : 0
-            )
-        );
-
-
-    /*
-     * Categories
-     */
-
-    normalized.category_spending =
-        payload.category_spending &&
-        typeof payload.category_spending === "object"
-            ? payload.category_spending
-            : {};
-
-
-    /*
-     * Recurring
-     */
-
-    normalized.recurring =
-        Array.isArray(
-            payload.recurring
-        )
-            ? payload.recurring
-            : [];
-
-
-    /*
-     * Unusual
-     */
-
-    normalized.unusual =
-        Array.isArray(
-            payload.unusual
-        )
-            ? payload.unusual
-            : [];
-
-
-    normalized.unusual_spending =
-        Array.isArray(
-            payload.unusual_spending
-        )
-            ? payload.unusual_spending
-            : normalized.unusual;
-
-
-    /*
-     * Monthly spending
-     */
-
-    normalized.monthly_spending =
-        payload.monthly_spending &&
-        typeof payload.monthly_spending === "object"
-            ? payload.monthly_spending
-            : {};
-
-
-    /*
-     * Transactions
-     */
-
-    normalized.transactions =
-        Array.isArray(
-            payload.transactions
-        )
-            ? payload.transactions.map(
-                normalizeTransaction
-            )
-            : [];
-
-
-    /*
-     * Recent transactions
-     */
-
-    if (
-        Array.isArray(
-            payload.recent_transactions
-        )
-    ) {
-
-        normalized.recent_transactions =
-            payload.recent_transactions.map(
-                normalizeTransaction
-            );
-
-    } else {
-
-        normalized.recent_transactions =
-            normalized.transactions
-                .slice(
-                    -10
-                )
-                .reverse();
-
-    }
-
-
-    /*
-     * Budget progress
-     */
-
-    normalized.budget_progress =
-        Array.isArray(
-            payload.budget_progress
-        )
-            ? payload.budget_progress
-            : [];
-
-
-    /*
-     * Optional fields used by other backend versions.
-     */
-
-    normalized.budgets =
-        Array.isArray(
-            payload.budgets
-        )
-            ? payload.budgets
-            : [];
-
-    normalized.goals =
-        Array.isArray(
-            payload.goals
-        )
-            ? payload.goals
-            : [];
-
-    normalized.goal_impact =
-        payload.goal_impact || {};
-
-    normalized.insights =
-        Array.isArray(
-            payload.insights
-        )
-            ? payload.insights
-            : [];
 
 
     return normalized;
@@ -574,178 +616,19 @@ function normalizeDashboardResponse(data) {
 
 
 /* ============================================================
-   NORMALIZE ONE TRANSACTION
+   LOAD DASHBOARD FROM DATABASE
    ============================================================ */
 
-function normalizeTransaction(tx) {
-
-    tx =
-        tx && typeof tx === "object"
-            ? tx
-            : {};
-
-
-    return {
-
-        date:
-            tx.date ||
-            tx.Date ||
-            "",
-
-        description:
-            tx.description ||
-            tx.Description ||
-            "Unknown transaction",
-
-        amount:
-            Number(
-                tx.amount ??
-                tx.Amount ??
-                0
-            ),
-
-        category:
-            tx.category ||
-            tx.Category ||
-            "Other",
-
-        type:
-            tx.type ||
-            tx.Type ||
-            ""
-
-    };
-
-}
-
-
-/* ============================================================
-   AUTONOMOUS AGENT
-   ============================================================ */
-
-async function runAutonomousAgent() {
-
-    if (!financialData) {
-
-        console.error(
-            "No financial data available."
-        );
-
-        return;
-    }
-
-
-    const empty =
-        document.getElementById(
-            "agentEmpty"
-        );
-
-    const activity =
-        document.getElementById(
-            "agentActivity"
-        );
-
-    const report =
-        document.getElementById(
-            "agentReport"
-        );
-
-    const chat =
-        document.getElementById(
-            "agentChat"
-        );
-
-
-    if (empty) {
-        empty.classList.add(
-            "hidden"
-        );
-    }
-
-    if (activity) {
-        activity.classList.remove(
-            "hidden"
-        );
-    }
-
-    if (report) {
-        report.classList.add(
-            "hidden"
-        );
-    }
-
-    if (chat) {
-        chat.classList.add(
-            "hidden"
-        );
-    }
-
-
-    setAgentStatus(
-        "Investigating..."
-    );
-
-    setSidebarAgentStatus(
-        "Investigating your finances"
-    );
-
-
-    renderAgentActivity([
-
-        {
-            title:
-                "Understanding your financial data",
-
-            description:
-                "Building the financial profile...",
-
-            active:
-                true
-        },
-
-        {
-            title:
-                "Selecting analysis tools",
-
-            description:
-                "Determining what needs investigation...",
-
-            active:
-                false
-        },
-
-        {
-            title:
-                "Investigating patterns",
-
-            description:
-                "Checking spending and cash flow...",
-
-            active:
-                false
-        }
-
-    ]);
-
+async function loadDashboardData() {
 
     try {
 
         const response =
             await fetch(
-                "/agent/analyze",
+                "/api/dashboard",
                 {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body:
-                        JSON.stringify({
-                            financial_data:
-                                financialData
-                        })
+                    method:
+                        "GET"
                 }
             );
 
@@ -760,68 +643,74 @@ async function runAutonomousAgent() {
 
             throw new Error(
                 data.error ||
-                "Agent analysis failed."
+                "Dashboard data could not be loaded."
             );
 
         }
 
 
-        agentResult =
-            data;
+        financialData =
+            normalizeDashboardResponse(
+                data
+            );
 
 
-        renderAgentReport(
-            data
+        renderFinancialOverview(
+            financialData
+        );
+
+        renderSpending(
+            financialData
+        );
+
+        renderCategories(
+            financialData
+        );
+
+        renderRecurring(
+            financialData
+        );
+
+        renderUnusual(
+            financialData
+        );
+
+        renderMonthlySpending(
+            financialData
+        );
+
+        renderTransactions(
+            financialData
         );
 
 
-        if (activity) {
-            activity.classList.add(
-                "hidden"
+        if (
+            Number(
+                financialData.transaction_count
+            ) > 0
+        ) {
+
+            setDataStatus(
+                "Data loaded"
             );
-        }
 
-        if (report) {
-            report.classList.remove(
-                "hidden"
+        } else {
+
+            setDataStatus(
+                "No data loaded"
             );
+
         }
-
-        if (chat) {
-            chat.classList.remove(
-                "hidden"
-            );
-        }
-
-
-        setAgentStatus(
-            "Analysis complete"
-        );
-
-        setSidebarAgentStatus(
-            "Analysis complete"
-        );
-
 
     } catch (error) {
 
         console.error(
-            "Agent error:",
+            "Dashboard API error:",
             error
         );
 
-
-        setAgentStatus(
-            "Analysis failed"
-        );
-
-        setSidebarAgentStatus(
-            "Analysis failed"
-        );
-
-
-        renderAgentError(
-            error.message
+        setDataStatus(
+            "No data loaded"
         );
 
     }
@@ -830,471 +719,129 @@ async function runAutonomousAgent() {
 
 
 /* ============================================================
-   AGENT REPORT
+   NORMALIZE DASHBOARD API
    ============================================================ */
 
-function renderAgentReport(result) {
+function normalizeDashboardResponse(
+    data
+) {
 
-    const report =
-        result &&
-        result.report
-            ? result.report
-            : (
-                result || {}
-            );
-
-
-    setText(
-        "agentHeadline",
-        report.headline ||
-        "Your financial analysis is ready."
-    );
+    const transactions =
+        Array.isArray(
+            data.transactions
+        )
+            ? data.transactions
+            : [];
 
 
-    setText(
-        "agentOverview",
-        report.summary ||
-        report.overview ||
-        "FinPilot completed its investigation."
-    );
+    return {
 
+        success:
+            true,
 
-    setText(
-        "agentSpending",
-        firstItem(
-            report.spending_risks ||
-            report.spending_pattern
-        ) ||
-        "No major spending pattern identified."
-    );
+        income:
+            Number(
+                data.income ||
+                0
+            ),
 
+        expenses:
+            Number(
+                data.expenses ||
+                0
+            ),
 
-    setText(
-        "agentRecurring",
-        firstItem(
-            report.recurring_payments
-        ) ||
-        summarizeRecurring()
-    );
+        savings:
+            Number(
+                data.savings ||
+                0
+            ),
 
+        savings_rate:
+            Number(
+                data.savings_rate ||
+                0
+            ),
 
-    setText(
-        "agentAttention",
-        firstItem(
-            report.spending_risks ||
-            report.attention_needed
-        ) ||
-        "No major attention item identified."
-    );
+        transaction_count:
+            Number(
+                data.transaction_count ||
+                transactions.length ||
+                0
+            ),
 
+        category_spending:
+            data.category_spending ||
+            {},
 
-    setText(
-        "agentBudget",
-        firstItem(
-            report.recommendations ||
-            report.budget_check
-        ) ||
-        summarizeBudgets()
-    );
+        recurring:
+            Array.isArray(
+                data.recurring
+            )
+                ? data.recurring
+                : [],
 
+        unusual:
+            Array.isArray(
+                data.unusual
+            )
+                ? data.unusual
+                : [],
 
-    setText(
-        "agentInsight",
-        report.agent_insight ||
-        "FinPilot completed its analysis using the available financial data."
-    );
+        unusual_spending:
+            Array.isArray(
+                data.unusual_spending
+            )
+                ? data.unusual_spending
+                : (
+                    Array.isArray(
+                        data.unusual
+                    )
+                        ? data.unusual
+                        : []
+                ),
 
+        monthly_spending:
+            data.monthly_spending ||
+            {},
 
-    renderList(
-        "agentKeyInsights",
-        report.key_insights ||
-        []
-    );
+        transactions:
+            transactions,
 
+        recent_transactions:
+            Array.isArray(
+                data.recent_transactions
+            )
+                ? data.recent_transactions
+                : transactions
+                    .slice()
+                    .reverse()
+                    .slice(
+                        0,
+                        10
+                    ),
 
-    renderList(
-        "agentRisks",
-        report.spending_risks ||
-        report.attention_needed ||
-        []
-    );
+        budget_progress:
+            Array.isArray(
+                data.budget_progress
+            )
+                ? data.budget_progress
+                : [],
 
-
-    renderList(
-        "agentOpportunities",
-        report.savings_opportunities ||
-        []
-    );
-
-
-    renderRecommendations(
-        report.recommendations ||
-        []
-    );
-
-
-    renderToolTrace(
-        result.tools_used ||
-        []
-    );
-
-}
-
-
-/* ============================================================
-   AGENT ACTIVITY
-   ============================================================ */
-
-function renderAgentActivity(steps) {
-
-    const container =
-        document.getElementById(
-            "activityList"
-        );
-
-    if (!container) {
-        return;
-    }
-
-
-    container.innerHTML =
-        (
-            Array.isArray(steps)
-                ? steps
+        insights:
+            Array.isArray(
+                data.insights
+            )
+                ? data.insights
                 : []
-        )
-        .map(
-            function (step) {
 
-                return `
-
-                    <div class="activity-step ${
-                        step.active
-                            ? "active"
-                            : ""
-                    }">
-
-                        <div class="activity-icon">
-
-                            ${
-                                step.active
-                                    ? "◌"
-                                    : "✓"
-                            }
-
-                        </div>
-
-                        <div>
-
-                            <strong>
-                                ${
-                                    escapeHTML(
-                                        step.title
-                                    )
-                                }
-                            </strong>
-
-                            <span>
-                                ${
-                                    escapeHTML(
-                                        step.description
-                                    )
-                                }
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                `;
-
-            }
-        )
-        .join("");
+    };
 
 }
 
 
 /* ============================================================
-   AGENT ERROR
-   ============================================================ */
-
-function renderAgentError(message) {
-
-    const activity =
-        document.getElementById(
-            "agentActivity"
-        );
-
-    if (!activity) {
-        return;
-    }
-
-
-    activity.classList.remove(
-        "hidden"
-    );
-
-
-    const list =
-        document.getElementById(
-            "activityList"
-        );
-
-    if (!list) {
-        return;
-    }
-
-
-    list.innerHTML = `
-
-        <div class="activity-step active">
-
-            <div class="activity-icon">
-                !
-            </div>
-
-            <div>
-
-                <strong>
-                    Agent analysis failed
-                </strong>
-
-                <span>
-                    ${
-                        escapeHTML(
-                            message
-                        )
-                    }
-                </span>
-
-            </div>
-
-        </div>
-
-    `;
-
-}
-
-
-/* ============================================================
-   TOOL TRACE
-   ============================================================ */
-
-function renderToolTrace(tools) {
-
-    const container =
-        document.getElementById(
-            "agentToolTrace"
-        );
-
-    if (!container) {
-        return;
-    }
-
-
-    if (
-        !Array.isArray(tools) ||
-        !tools.length
-    ) {
-
-        container.innerHTML =
-            "<span>No tool trace available.</span>";
-
-        return;
-    }
-
-
-    container.innerHTML =
-        tools
-            .map(
-                function (tool) {
-
-                    return `
-
-                        <span class="tool-item">
-                            ✓ ${
-                                escapeHTML(
-                                    formatToolName(
-                                        tool
-                                    )
-                                )
-                            }
-                        </span>
-
-                    `;
-
-                }
-            )
-            .join("");
-
-}
-
-
-/* ============================================================
-   LIST RENDERER
-   ============================================================ */
-
-function renderList(
-    id,
-    items
-) {
-
-    const container =
-        document.getElementById(
-            id
-        );
-
-    if (!container) {
-        return;
-    }
-
-
-    if (
-        !Array.isArray(items) ||
-        !items.length
-    ) {
-
-        container.innerHTML = `
-
-            <div class="empty-inline">
-                No specific items identified.
-            </div>
-
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        items
-            .map(
-                function (item) {
-
-                    const text =
-                        typeof item === "string"
-                            ? item
-                            : (
-                                item.text ||
-                                item.description ||
-                                item.title ||
-                                ""
-                            );
-
-
-                    return `
-
-                        <div class="insight-list-item">
-
-                            <span>
-                                •
-                            </span>
-
-                            <p>
-                                ${
-                                    escapeHTML(
-                                        text
-                                    )
-                                }
-                            </p>
-
-                        </div>
-
-                    `;
-
-                }
-            )
-            .join("");
-
-}
-
-
-/* ============================================================
-   RECOMMENDATIONS
-   ============================================================ */
-
-function renderRecommendations(
-    items
-) {
-
-    const container =
-        document.getElementById(
-            "agentRecommendations"
-        );
-
-    if (!container) {
-        return;
-    }
-
-
-    if (
-        !Array.isArray(items) ||
-        !items.length
-    ) {
-
-        container.innerHTML = `
-
-            <div class="empty-inline">
-                No recommendations generated.
-            </div>
-
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        items
-            .map(
-                function (
-                    item,
-                    index
-                ) {
-
-                    const text =
-                        typeof item === "string"
-                            ? item
-                            : (
-                                item.text ||
-                                item.description ||
-                                item.title ||
-                                ""
-                            );
-
-
-                    return `
-
-                        <div class="recommendation-item">
-
-                            <div class="recommendation-number">
-                                ${
-                                    index + 1
-                                }
-                            </div>
-
-                            <p>
-                                ${
-                                    escapeHTML(
-                                        text
-                                    )
-                                }
-                            </p>
-
-                        </div>
-
-                    `;
-
-                }
-            )
-            .join("");
-
-}
-
-
-/* ============================================================
-   FINANCIAL OVERVIEW
+   FINANCIAL SUMMARY
    ============================================================ */
 
 function renderFinancialOverview(
@@ -1302,7 +849,7 @@ function renderFinancialOverview(
 ) {
 
     setText(
-        "income",
+        "incomeValue",
         formatINR(
             data.income
         )
@@ -1310,7 +857,7 @@ function renderFinancialOverview(
 
 
     setText(
-        "expenses",
+        "expenseValue",
         formatINR(
             data.expenses
         )
@@ -1318,7 +865,7 @@ function renderFinancialOverview(
 
 
     setText(
-        "savings",
+        "savingsValue",
         formatINR(
             data.savings
         )
@@ -1328,14 +875,11 @@ function renderFinancialOverview(
     setText(
         "savingsRate",
         `${Number(
-            data.savings_rate || 0
-        ).toFixed(2)}%`
+            data.savings_rate ||
+            0
+        ).toFixed(1)}% savings rate`
     );
 
-
-    /*
-     * Optional transaction count support.
-     */
 
     setText(
         "transactionCount",
@@ -1351,7 +895,7 @@ function renderFinancialOverview(
 
 
 /* ============================================================
-   SPENDING CHART
+   CHART
    ============================================================ */
 
 function renderSpending(
@@ -1363,10 +907,6 @@ function renderSpending(
             "spendingChart"
         );
 
-    const empty =
-        document.getElementById(
-            "chartEmpty"
-        );
 
     if (!canvas) {
         return;
@@ -1374,7 +914,8 @@ function renderSpending(
 
 
     const categories =
-        data.category_spending || {};
+        data.category_spending ||
+        {};
 
 
     const entries =
@@ -1382,7 +923,9 @@ function renderSpending(
             categories
         )
         .filter(
-            function (item) {
+            function (
+                item
+            ) {
 
                 return Number(
                     item[1]
@@ -1391,41 +934,22 @@ function renderSpending(
             }
         )
         .sort(
-            function (a, b) {
+            function (
+                a,
+                b
+            ) {
 
                 return (
-                    Number(b[1]) -
-                    Number(a[1])
+                    Number(
+                        b[1]
+                    ) -
+                    Number(
+                        a[1]
+                    )
                 );
 
             }
         );
-
-
-    if (!entries.length) {
-
-        if (empty) {
-            empty.style.display =
-                "flex";
-        }
-
-        if (spendingChart) {
-
-            spendingChart.destroy();
-
-            spendingChart =
-                null;
-
-        }
-
-        return;
-    }
-
-
-    if (empty) {
-        empty.style.display =
-            "none";
-    }
 
 
     if (
@@ -1434,23 +958,34 @@ function renderSpending(
     ) {
 
         console.error(
-            "Chart.js was not loaded."
+            "Chart.js is not loaded."
         );
 
         return;
     }
 
 
-    if (spendingChart) {
+    if (
+        spendingChart
+    ) {
 
         spendingChart.destroy();
 
         spendingChart =
             null;
+
     }
 
 
-    const chartColors = [
+    if (
+        !entries.length
+    ) {
+
+        return;
+    }
+
+
+    const colors = [
 
         "#4F46E5",
         "#7C3AED",
@@ -1513,21 +1048,16 @@ function renderSpending(
                                         index
                                     ) {
 
-                                        return (
-                                            chartColors[
-                                                index %
-                                                chartColors.length
-                                            ]
-                                        );
+                                        return colors[
+                                            index %
+                                            colors.length
+                                        ];
 
                                     }
                                 ),
 
                             borderWidth:
-                                2,
-
-                            borderColor:
-                                "#ffffff"
+                                0
 
                         }
 
@@ -1564,18 +1094,11 @@ function renderSpending(
                                         context
                                     ) {
 
-                                        const value =
-                                            Number(
-                                                context.raw ||
-                                                0
-                                            );
-
                                         return (
-                                            " " +
                                             context.label +
                                             ": " +
                                             formatINR(
-                                                value
+                                                context.raw
                                             )
                                         );
 
@@ -1596,146 +1119,65 @@ function renderSpending(
 
 
 /* ============================================================
-   BUDGETS
+   TOP CATEGORIES
    ============================================================ */
 
-function renderBudgets(
-    data
-) {
-
-    const rows =
-        document.querySelectorAll(
-            ".budget-row"
-        );
-
-
-    const budgets =
-        Array.isArray(
-            data.budget_progress
-        )
-            ? data.budget_progress
-            : [];
-
-
-    rows.forEach(
-        function (row) {
-
-            const category =
-                row.dataset.category;
-
-
-            const budget =
-                budgets.find(
-                    function (item) {
-
-                        return (
-                            String(
-                                item.category
-                            )
-                            .toLowerCase() ===
-
-                            String(
-                                category
-                            )
-                            .toLowerCase()
-                        );
-
-                    }
-                );
-
-
-            if (!budget) {
-                return;
-            }
-
-
-            const amount =
-                row.querySelector(
-                    ".budget-amount"
-                );
-
-
-            const progress =
-                row.querySelector(
-                    ".progress-value"
-                );
-
-
-            if (amount) {
-
-                amount.textContent =
-                    `${formatINR(
-                        budget.spent || 0
-                    )} / ${formatINR(
-                        budget.budget || 0
-                    )}`;
-
-            }
-
-
-            if (progress) {
-
-                progress.style.width =
-                    `${Math.min(
-                        Number(
-                            budget.percentage ||
-                            0
-                        ),
-                        100
-                    )}%`;
-
-            }
-
-        }
-    );
-
-}
-
-
-/* ============================================================
-   TRANSACTIONS
-   ============================================================ */
-
-function renderTransactions(
+function renderCategories(
     data
 ) {
 
     const container =
         document.getElementById(
-            "recentTransactions"
+            "categoriesList"
         );
+
 
     if (!container) {
         return;
     }
 
 
-    const transactions =
-        Array.isArray(
-            data.recent_transactions
+    const entries =
+        Object.entries(
+            data.category_spending ||
+            {}
         )
-            ? data.recent_transactions
-            : [];
+        .filter(
+            function (
+                item
+            ) {
+
+                return Number(
+                    item[1]
+                ) > 0;
+
+            }
+        )
+        .sort(
+            function (
+                a,
+                b
+            ) {
+
+                return (
+                    Number(
+                        b[1]
+                    ) -
+                    Number(
+                        a[1]
+                    )
+                );
+
+            }
+        );
 
 
-    if (!transactions.length) {
+    if (!entries.length) {
 
         container.innerHTML = `
 
-            <div class="transaction-empty">
-
-                <div class="empty-icon">
-                    ▤
-                </div>
-
-                <strong>
-                    No transactions found
-                </strong>
-
-                <span>
-                    Your statement contains no usable transactions.
-                </span>
-
+            <div class="empty-state">
+                No spending data available.
             </div>
 
         `;
@@ -1744,79 +1186,104 @@ function renderTransactions(
     }
 
 
+    const max =
+        Number(
+            entries[0][1]
+        );
+
+
     container.innerHTML =
-        transactions.map(
-            function (tx) {
+        entries
+            .map(
+                function (
+                    item,
+                    index
+                ) {
 
-                const normalized =
-                    normalizeTransaction(
-                        tx
-                    );
+                    const category =
+                        item[0];
+
+                    const amount =
+                        Number(
+                            item[1]
+                        );
+
+                    const percent =
+                        max > 0
+                            ? (
+                                amount /
+                                max
+                            ) * 100
+                            : 0;
 
 
-                const amount =
-                    Number(
-                        normalized.amount
-                    );
+                    return `
 
+                        <div
+                            class="category-item"
+                        >
 
-                return `
+                            <div class="category-top">
 
-                    <div class="transaction-row">
+                                <span class="category-name">
+                                    ${escapeHTML(category)}
+                                </span>
 
-                        <div class="transaction-date">
-                            ${
-                                escapeHTML(
-                                    normalized.date
-                                )
-                            }
-                        </div>
+                                <strong class="category-value">
+                                    ${formatINR(amount)}
+                                </strong>
 
-                        <div class="transaction-description">
-                            ${
-                                escapeHTML(
-                                    normalized.description
-                                )
-                            }
-                        </div>
+                            </div>
 
-                        <div class="transaction-category">
-                            ${
-                                escapeHTML(
-                                    normalized.category
-                                )
-                            }
-                        </div>
+                            <div class="category-bar">
 
-                        <div class="transaction-amount ${
-                            amount > 0
-                                ? "income"
-                                : "expense"
-                        }">
+                                <div
+                                    class="category-fill"
+                                    style="
+                                        width:${percent}%;
+                                        background:${getCategoryColor(index)};
+                                    "
+                                ></div>
 
-                            ${
-                                amount > 0
-                                    ? "+"
-                                    : "-"
-                            }
-
-                            ${
-                                formatINR(
-                                    Math.abs(
-                                        amount
-                                    )
-                                )
-                            }
+                            </div>
 
                         </div>
 
-                    </div>
+                    `;
 
-                `;
+                }
+            )
+            .join("");
 
-            }
-        )
-        .join("");
+}
+
+
+/* ============================================================
+   CATEGORY COLORS
+   ============================================================ */
+
+function getCategoryColor(
+    index
+) {
+
+    const colors = [
+
+        "#4F46E5",
+        "#7C3AED",
+        "#F97316",
+        "#EC4899",
+        "#10B981",
+        "#F59E0B",
+        "#06B6D4",
+        "#EF4444"
+
+    ];
+
+
+    return colors[
+        index %
+        colors.length
+    ];
 
 }
 
@@ -1831,8 +1298,9 @@ function renderRecurring(
 
     const container =
         document.getElementById(
-            "recurringPayments"
+            "recurringList"
         );
+
 
     if (!container) {
         return;
@@ -1851,20 +1319,8 @@ function renderRecurring(
 
         container.innerHTML = `
 
-            <div class="recurring-empty">
-
-                <div class="empty-icon">
-                    ↻
-                </div>
-
-                <strong>
-                    No recurring patterns detected
-                </strong>
-
-                <span>
-                    No repeated payments were found.
-                </span>
-
+            <div class="empty-state">
+                No recurring payments detected.
             </div>
 
         `;
@@ -1874,52 +1330,55 @@ function renderRecurring(
 
 
     container.innerHTML =
-        recurring.map(
-            function (item) {
+        recurring
+            .map(
+                function (
+                    item
+                ) {
 
-                return `
+                    return `
 
-                    <div class="recurring-row">
+                        <div class="recurring-item">
 
-                        <div>
+                            <div>
+
+                                <strong>
+                                    ${
+                                        escapeHTML(
+                                            item.description ||
+                                            "Recurring payment"
+                                        )
+                                    }
+                                </strong>
+
+                                <span>
+                                    ${
+                                        Number(
+                                            item.payments ||
+                                            0
+                                        )
+                                    }
+                                    payments detected
+                                </span>
+
+                            </div>
 
                             <strong>
                                 ${
-                                    escapeHTML(
-                                        item.description ||
-                                        "Recurring payment"
+                                    formatINR(
+                                        item.amount ||
+                                        0
                                     )
                                 }
                             </strong>
 
-                            <span>
-                                ${
-                                    Number(
-                                        item.payments ||
-                                        0
-                                    )
-                                }
-                                payments detected
-                            </span>
-
                         </div>
 
-                        <strong>
-                            ${
-                                formatINR(
-                                    item.amount ||
-                                    0
-                                )
-                            }
-                        </strong>
+                    `;
 
-                    </div>
-
-                `;
-
-            }
-        )
-        .join("");
+                }
+            )
+            .join("");
 
 }
 
@@ -1934,8 +1393,9 @@ function renderUnusual(
 
     const container =
         document.getElementById(
-            "unusualSpending"
+            "unusualList"
         );
+
 
     if (!container) {
         return;
@@ -1954,20 +1414,8 @@ function renderUnusual(
 
         container.innerHTML = `
 
-            <div class="unusual-empty">
-
-                <div class="empty-icon">
-                    ✓
-                </div>
-
-                <strong>
-                    No unusual spending detected
-                </strong>
-
-                <span>
-                    No expense stood out against the observed pattern.
-                </span>
-
+            <div class="empty-state">
+                No unusual spending detected.
             </div>
 
         `;
@@ -1977,98 +1425,1014 @@ function renderUnusual(
 
 
     container.innerHTML =
-        unusual.map(
-            function (item) {
+        unusual
+            .map(
+                function (
+                    item
+                ) {
 
-                return `
+                    return `
 
-                    <div class="unusual-row">
+                        <div class="unusual-item">
 
-                        <div>
+                            <div>
+
+                                <strong>
+                                    ${
+                                        escapeHTML(
+                                            item.description ||
+                                            "Unusual transaction"
+                                        )
+                                    }
+                                </strong>
+
+                                <span>
+                                    ${
+                                        escapeHTML(
+                                            item.date ||
+                                            ""
+                                        )
+                                    }
+
+                                    ${
+                                        item.average !==
+                                        undefined
+                                            ? " · Average: " +
+                                              formatINR(
+                                                  item.average
+                                              )
+                                            : ""
+                                    }
+
+                                </span>
+
+                            </div>
 
                             <strong>
                                 ${
-                                    escapeHTML(
-                                        item.description ||
-                                        "Unusual transaction"
+                                    formatINR(
+                                        Math.abs(
+                                            item.amount ||
+                                            0
+                                        )
                                     )
                                 }
                             </strong>
 
-                            <span>
-
-                                ${
-                                    escapeHTML(
-                                        item.date ||
-                                        ""
-                                    )
-                                }
-
-                                · Average:
-
-                                ${
-                                    formatINR(
-                                        item.average ||
-                                        0
-                                    )
-                                }
-
-                            </span>
-
                         </div>
 
-                        <strong>
-                            ${
-                                formatINR(
-                                    item.amount ||
-                                    0
-                                )
-                            }
-                        </strong>
+                    `;
 
-                    </div>
-
-                `;
-
-            }
-        )
-        .join("");
+                }
+            )
+            .join("");
 
 }
 
 
 /* ============================================================
-   CHAT SETUP
+   MONTHLY SPENDING
    ============================================================ */
 
-function setupAgentChat() {
+function renderMonthlySpending(
+    data
+) {
 
-    const button =
+    const container =
         document.getElementById(
-            "agentAsk"
+            "monthlySpending"
         );
 
 
-    const input =
-        document.getElementById(
-            "agentQuestion"
-        );
-
-
-    if (!button || !input) {
+    if (!container) {
         return;
     }
 
 
-    button.addEventListener(
-        "click",
-        askAgent
+    const entries =
+        Object.entries(
+            data.monthly_spending ||
+            {}
+        )
+        .sort(
+            function (
+                a,
+                b
+            ) {
+
+                return a[0].localeCompare(
+                    b[0]
+                );
+
+            }
+        );
+
+
+    if (!entries.length) {
+
+        container.innerHTML = `
+
+            <div class="empty-state">
+                No monthly data available.
+            </div>
+
+        `;
+
+        return;
+    }
+
+
+    const max =
+        Math.max.apply(
+            null,
+            entries.map(
+                function (
+                    item
+                ) {
+
+                    return Number(
+                        item[1]
+                    );
+
+                }
+            )
+        );
+
+
+    container.innerHTML =
+        entries
+            .map(
+                function (
+                    item
+                ) {
+
+                    const month =
+                        item[0];
+
+                    const amount =
+                        Number(
+                            item[1]
+                        );
+
+                    const width =
+                        max > 0
+                            ? (
+                                amount /
+                                max
+                            ) * 100
+                            : 0;
+
+
+                    return `
+
+                        <div class="monthly-item">
+
+                            <div class="monthly-header">
+
+                                <span>
+                                    ${escapeHTML(month)}
+                                </span>
+
+                                <strong>
+                                    ${formatINR(amount)}
+                                </strong>
+
+                            </div>
+
+                            <div class="monthly-bar">
+
+                                <div
+                                    class="monthly-fill"
+                                    style="
+                                        width:${width}%;
+                                    "
+                                ></div>
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }
+            )
+            .join("");
+
+}
+
+
+/* ============================================================
+   RECENT TRANSACTIONS
+   ============================================================ */
+
+function renderTransactions(
+    data
+) {
+
+    const container =
+        document.getElementById(
+            "recentTransactions"
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    const transactions =
+        Array.isArray(
+            data.recent_transactions
+        )
+            ? data.recent_transactions
+            : [];
+
+
+    if (!transactions.length) {
+
+        container.innerHTML = `
+
+            <div class="empty-state">
+                No transactions available.
+            </div>
+
+        `;
+
+        return;
+    }
+
+
+    container.innerHTML =
+        transactions
+            .map(
+                function (
+                    tx
+                ) {
+
+                    const normalized =
+                        normalizeTransaction(
+                            tx
+                        );
+
+
+                    const amount =
+                        normalized.amount;
+
+
+                    const isIncome =
+                        amount > 0;
+
+
+                    return `
+
+                        <div class="transaction-row">
+
+                            <div class="transaction-date">
+                                ${
+                                    escapeHTML(
+                                        normalized.date
+                                    )
+                                }
+                            </div>
+
+                            <div class="transaction-description">
+                                ${
+                                    escapeHTML(
+                                        normalized.description
+                                    )
+                                }
+                            </div>
+
+                            <div class="transaction-category">
+                                ${
+                                    escapeHTML(
+                                        normalized.category
+                                    )
+                                }
+                            </div>
+
+                            <div class="
+                                transaction-amount
+                                ${
+                                    isIncome
+                                        ? "income"
+                                        : "expense"
+                                }
+                            ">
+
+                                ${
+                                    isIncome
+                                        ? "+"
+                                        : "-"
+                                }
+
+                                ${
+                                    formatINR(
+                                        Math.abs(
+                                            amount
+                                        )
+                                    )
+                                }
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }
+            )
+            .join("");
+
+}
+
+
+/* ============================================================
+   NORMALIZE TRANSACTION
+   ============================================================ */
+
+function normalizeTransaction(
+    tx
+) {
+
+    tx =
+        tx &&
+        typeof tx === "object"
+            ? tx
+            : {};
+
+
+    let amount =
+        Number(
+            tx.amount ??
+            tx.Amount ??
+            0
+        );
+
+
+    /*
+     * Database records may store:
+     *
+     * amount + type
+     */
+
+    const type =
+        String(
+            tx.type ||
+            tx.transaction_type ||
+            ""
+        )
+        .toLowerCase();
+
+
+    if (
+        type === "expense"
+    ) {
+
+        amount =
+            -Math.abs(
+                amount
+            );
+
+    } else if (
+        type === "income"
+    ) {
+
+        amount =
+            Math.abs(
+                amount
+            );
+
+    }
+
+
+    return {
+
+        id:
+            tx.id ||
+            null,
+
+        date:
+            tx.date ||
+            tx.Date ||
+            "",
+
+        description:
+            tx.description ||
+            tx.Description ||
+            "Unknown",
+
+        amount:
+            amount,
+
+        category:
+            tx.category ||
+            tx.Category ||
+            "Other"
+
+    };
+
+}
+
+
+/* ============================================================
+   GOAL IMPACT
+   ============================================================ */
+
+async function loadGoalImpact() {
+
+    const container =
+        document.getElementById(
+            "goalImpact"
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/goal-impact"
+            );
+
+
+        const data =
+            await safeJson(
+                response
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Goal impact unavailable."
+            );
+
+        }
+
+
+        const goals =
+            Array.isArray(
+                data.goals
+            )
+                ? data.goals
+                : [];
+
+
+        if (!goals.length) {
+
+            container.innerHTML = `
+
+                <div class="empty-state">
+                    No financial goals created yet.
+                </div>
+
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            goals
+                .map(
+                    function (
+                        goal
+                    ) {
+
+                        const progress =
+                            Number(
+                                goal.progress ||
+                                0
+                            );
+
+
+                        const remaining =
+                            Number(
+                                goal.remaining_amount ||
+                                0
+                            );
+
+
+                        return `
+
+                            <div class="goal-impact-card">
+
+                                <div class="goal-impact-top">
+
+                                    <div>
+
+                                        <strong>
+                                            ${
+                                                escapeHTML(
+                                                    goal.name ||
+                                                    "Financial Goal"
+                                                )
+                                            }
+                                        </strong>
+
+                                        <span>
+                                            Target:
+                                            ${
+                                                formatINR(
+                                                    goal.target_amount
+                                                )
+                                            }
+                                        </span>
+
+                                    </div>
+
+                                    <strong>
+                                        ${progress.toFixed(1)}%
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="progress-bar">
+
+                                    <div
+                                        class="progress-value"
+                                        style="
+                                            width:${Math.min(
+                                                progress,
+                                                100
+                                            )}%
+                                        "
+                                    ></div>
+
+                                </div>
+
+
+                                <div class="goal-impact-bottom">
+
+                                    <span>
+                                        Remaining:
+                                        ${
+                                            formatINR(
+                                                remaining
+                                            )
+                                        }
+                                    </span>
+
+                                    <span>
+                                        Monthly savings:
+                                        ${
+                                            formatINR(
+                                                goal.monthly_savings
+                                            )
+                                        }
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    }
+                )
+                .join("");
+
+    } catch (error) {
+
+        console.error(
+            "Goal impact error:",
+            error
+        );
+
+
+        container.innerHTML = `
+
+            <div class="empty-state">
+                Goal impact could not be loaded.
+            </div>
+
+        `;
+
+    }
+
+}
+
+
+/* ============================================================
+   BUDGET ANALYSIS
+   ============================================================ */
+
+async function loadBudgetAnalysis() {
+
+    const container =
+        document.getElementById(
+            "budgetAnalysis"
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/budget-analysis"
+            );
+
+
+        const data =
+            await safeJson(
+                response
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Budget analysis unavailable."
+            );
+
+        }
+
+
+        const budgets =
+            Array.isArray(
+                data.budgets
+            )
+                ? data.budgets
+                : [];
+
+
+        if (!budgets.length) {
+
+            container.innerHTML = `
+
+                <div class="empty-state">
+                    No budgets created yet.
+                </div>
+
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            budgets
+                .map(
+                    function (
+                        budget
+                    ) {
+
+                        const used =
+                            Number(
+                                budget.used_percent ||
+                                0
+                            );
+
+
+                        const status =
+                            budget.status ||
+                            "healthy";
+
+
+                        return `
+
+                            <div class="
+                                budget-analysis-item
+                                ${escapeHTML(status)}
+                            ">
+
+                                <div class="budget-analysis-top">
+
+                                    <div>
+
+                                        <strong>
+                                            ${
+                                                escapeHTML(
+                                                    budget.category
+                                                )
+                                            }
+                                        </strong>
+
+                                        <span>
+                                            ${
+                                                formatINR(
+                                                    budget.actual
+                                                )
+                                            }
+                                            /
+                                            ${
+                                                formatINR(
+                                                    budget.budget
+                                                )
+                                            }
+                                        </span>
+
+                                    </div>
+
+                                    <strong>
+                                        ${used.toFixed(1)}%
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="progress-bar">
+
+                                    <div
+                                        class="progress-value"
+                                        style="
+                                            width:${Math.min(
+                                                used,
+                                                100
+                                            )}%
+                                        "
+                                    ></div>
+
+                                </div>
+
+
+                                <div class="budget-analysis-bottom">
+
+                                    <span>
+                                        Remaining:
+                                        ${
+                                            formatINR(
+                                                Math.max(
+                                                    Number(
+                                                        budget.remaining ||
+                                                        0
+                                                    ),
+                                                    0
+                                                )
+                                            )
+                                        }
+                                    </span>
+
+                                    <span>
+                                        ${
+                                            statusLabel(
+                                                status
+                                            )
+                                        }
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    }
+                )
+                .join("");
+
+    } catch (error) {
+
+        console.error(
+            "Budget analysis error:",
+            error
+        );
+
+
+        container.innerHTML = `
+
+            <div class="empty-state">
+                Budget analysis could not be loaded.
+            </div>
+
+        `;
+
+    }
+
+}
+
+
+/* ============================================================
+   STATUS LABEL
+   ============================================================ */
+
+function statusLabel(
+    status
+) {
+
+    if (
+        status ===
+        "over"
+    ) {
+
+        return "Over budget";
+
+    }
+
+
+    if (
+        status ===
+        "warning"
+    ) {
+
+        return "Near limit";
+
+    }
+
+
+    return "Within budget";
+
+}
+
+
+/* ============================================================
+   AI RESULT MESSAGE
+   ============================================================ */
+
+function showAIResult(
+    message,
+    isError = false
+) {
+
+    const section =
+        document.getElementById(
+            "aiResult"
+        );
+
+
+    const text =
+        document.getElementById(
+            "aiResultText"
+        );
+
+
+    if (!section) {
+        return;
+    }
+
+
+    section.style.display =
+        "flex";
+
+
+    if (text) {
+
+        text.textContent =
+            message;
+
+    }
+
+
+    section.classList.toggle(
+        "error",
+        Boolean(
+            isError
+        )
     );
+
+}
+
+
+/* ============================================================
+   AUTONOMOUS AGENT
+   ============================================================ */
+
+async function runAutonomousAgent() {
+
+    if (!financialData) {
+        return;
+    }
+
+
+    const section =
+        document.getElementById(
+            "aiResult"
+        );
+
+
+    if (section) {
+
+        section.style.display =
+            "flex";
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/agent/analyze",
+                {
+
+                    method:
+                        "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            financial_data:
+                                financialData
+
+                        })
+
+                }
+            );
+
+
+        const data =
+            await safeJson(
+                response
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Agent analysis failed."
+            );
+
+        }
+
+
+        /*
+         * Show agent summary if available.
+         */
+
+        const message =
+            data.message ||
+            data.summary ||
+            (
+                data.report &&
+                data.report.summary
+            );
+
+
+        if (
+            message &&
+            typeof message ===
+            "string"
+        ) {
+
+            showAIResult(
+                message
+            );
+
+        }
+
+
+    } catch (error) {
+
+        /*
+         * AI API is optional.
+         *
+         * The financial analysis itself remains usable
+         * even when the AI service is unavailable.
+         */
+
+        console.warn(
+            "Autonomous agent unavailable:",
+            error.message
+        );
+
+    }
+
+}
+
+
+/* ============================================================
+   FINPILOT ASSISTANT
+   ============================================================ */
+
+function setupAssistant() {
+
+    const input =
+        document.getElementById(
+            "assistantInput"
+        );
+
+
+    if (!input) {
+        return;
+    }
 
 
     input.addEventListener(
         "keydown",
-        function (event) {
+        function (
+            event
+        ) {
 
             if (
                 event.key ===
@@ -2077,7 +2441,7 @@ function setupAgentChat() {
 
                 event.preventDefault();
 
-                askAgent();
+                askFinPilot();
 
             }
 
@@ -2088,24 +2452,76 @@ function setupAgentChat() {
 
 
 /* ============================================================
-   CHAT WITH AGENT
+   QUICK QUESTIONS
    ============================================================ */
 
-async function askAgent() {
+function setupQuickQuestions() {
+
+    const buttons =
+        document.querySelectorAll(
+            ".quick-question"
+        );
+
+
+    buttons.forEach(
+        function (
+            button
+        ) {
+
+            button.addEventListener(
+                "click",
+                function () {
+
+                    const question =
+                        button.dataset.question ||
+                        button.textContent.trim();
+
+
+                    const input =
+                        document.getElementById(
+                            "assistantInput"
+                        );
+
+
+                    if (input) {
+
+                        input.value =
+                            question;
+
+                        input.focus();
+
+                        askFinPilot();
+
+                    }
+
+                }
+            );
+
+        }
+    );
+
+}
+
+
+/* ============================================================
+   ASK FINPILOT
+   ============================================================ */
+
+async function askFinPilot() {
 
     const input =
         document.getElementById(
-            "agentQuestion"
+            "assistantInput"
         );
 
 
-    const answer =
+    const messages =
         document.getElementById(
-            "chatAnswer"
+            "assistantMessages"
         );
 
 
-    if (!input || !answer) {
+    if (!input || !messages) {
         return;
     }
 
@@ -2119,26 +2535,31 @@ async function askAgent() {
     }
 
 
-    if (!financialData) {
+    /*
+     * Add user message.
+     */
 
-        answer.classList.remove(
-            "hidden"
-        );
-
-        answer.textContent =
-            "Upload a statement before asking FinPilot.";
-
-        return;
-    }
-
-
-    answer.classList.remove(
-        "hidden"
+    appendAssistantMessage(
+        messages,
+        question,
+        "user"
     );
 
 
-    answer.textContent =
-        "FinPilot is analyzing your question...";
+    input.value =
+        "";
+
+
+    /*
+     * Add temporary response.
+     */
+
+    const loading =
+        appendAssistantMessage(
+            messages,
+            "FinPilot is thinking...",
+            "assistant"
+        );
 
 
     try {
@@ -2147,6 +2568,7 @@ async function askAgent() {
             await fetch(
                 "/agent/chat",
                 {
+
                     method:
                         "POST",
 
@@ -2182,36 +2604,36 @@ async function askAgent() {
 
             throw new Error(
                 data.error ||
-                "Could not answer the question."
+                "FinPilot could not answer."
             );
 
         }
 
 
-        const responseText =
+        const answer =
             data.answer ||
-            data.response ||
             data.message ||
-            data.agent_insight ||
-            "No answer returned.";
+            data.response ||
+            "I couldn't generate an answer.";
 
 
-        answer.textContent =
-            responseText;
+        if (loading) {
 
+            loading.textContent =
+                answer;
 
-        input.value =
-            "";
+        }
+
 
     } catch (error) {
 
-        console.error(
-            "Agent chat error:",
-            error
-        );
+        if (loading) {
 
-        answer.textContent =
-            error.message;
+            loading.textContent =
+                error.message ||
+                "Something went wrong.";
+
+        }
 
     }
 
@@ -2219,208 +2641,73 @@ async function askAgent() {
 
 
 /* ============================================================
-   GOALS
+   APPEND CHAT MESSAGE
    ============================================================ */
 
-function addGoal() {
+function appendAssistantMessage(
+    container,
+    message,
+    type
+) {
 
-    const title =
-        prompt(
-            "What are you saving for?"
+    const wrapper =
+        document.createElement(
+            "div"
         );
 
 
-    if (!title) {
-        return;
-    }
-
-
-    const targetInput =
-        prompt(
-            "What is your target amount in ₹?"
-        );
-
-
-    const target =
-        Number(
-            targetInput
-        );
+    wrapper.className =
+        type === "user"
+            ? "user-message"
+            : "assistant-message";
 
 
     if (
-        !Number.isFinite(
-            target
-        ) ||
-        target <= 0
+        type ===
+        "assistant"
     ) {
 
-        alert(
-            "Please enter a valid target amount."
-        );
+        wrapper.innerHTML = `
 
-        return;
-    }
+            <div class="message-avatar">
+                ✦
+            </div>
 
+            <div class="message-bubble">
+                ${escapeHTML(message)}
+            </div>
 
-    let goals = [];
+        `;
 
-    try {
+    } else {
 
-        goals =
-            JSON.parse(
-                localStorage.getItem(
-                    "finpilot_goals"
-                ) ||
-                "[]"
-            );
+        wrapper.innerHTML = `
 
-    } catch (error) {
+            <div class="message-bubble user-bubble">
+                ${escapeHTML(message)}
+            </div>
 
-        goals =
-            [];
+        `;
 
     }
 
 
-    goals.push({
-
-        id:
-            Date.now(),
-
-        title:
-            title,
-
-        target:
-            target,
-
-        current:
-            0
-
-    });
-
-
-    localStorage.setItem(
-        "finpilot_goals",
-        JSON.stringify(
-            goals
-        )
+    container.appendChild(
+        wrapper
     );
 
 
-    renderGoals();
+    container.scrollTop =
+        container.scrollHeight;
 
-}
 
-
-function renderGoals() {
-
-    const container =
-        document.getElementById(
-            "financialGoals"
+    const bubble =
+        wrapper.querySelector(
+            ".message-bubble"
         );
 
 
-    if (!container) {
-        return;
-    }
-
-
-    let goals = [];
-
-    try {
-
-        goals =
-            JSON.parse(
-                localStorage.getItem(
-                    "finpilot_goals"
-                ) ||
-                "[]"
-            );
-
-    } catch (error) {
-
-        goals =
-            [];
-
-    }
-
-
-    if (!goals.length) {
-        return;
-    }
-
-
-    container.innerHTML =
-        goals.map(
-            function (goal) {
-
-                const target =
-                    Number(
-                        goal.target ||
-                        0
-                    );
-
-                const current =
-                    Number(
-                        goal.current ||
-                        0
-                    );
-
-
-                const percentage =
-                    target > 0
-                        ? Math.min(
-                            (
-                                current /
-                                target
-                            ) * 100,
-                            100
-                        )
-                        : 0;
-
-
-                return `
-
-                    <div class="goal-card">
-
-                        <strong>
-                            ${
-                                escapeHTML(
-                                    goal.title
-                                )
-                            }
-                        </strong>
-
-                        <span>
-                            ${
-                                formatINR(
-                                    current
-                                )
-                            }
-                            /
-                            ${
-                                formatINR(
-                                    target
-                                )
-                            }
-                        </span>
-
-                        <div class="progress-bar">
-
-                            <div
-                                class="progress-value"
-                                style="width:${percentage}%"
-                            ></div>
-
-                        </div>
-
-                    </div>
-
-                `;
-
-            }
-        )
-        .join("");
+    return bubble;
 
 }
 
@@ -2431,23 +2718,27 @@ function renderGoals() {
 
 function setupNavigation() {
 
-    const navItems =
+    const links =
         document.querySelectorAll(
-            ".nav-item"
+            ".sidebar-nav a"
         );
 
 
-    navItems.forEach(
-        function (item) {
+    links.forEach(
+        function (
+            link
+        ) {
 
-            item.addEventListener(
+            link.addEventListener(
                 "click",
                 function () {
 
-                    navItems.forEach(
-                        function (nav) {
+                    links.forEach(
+                        function (
+                            item
+                        ) {
 
-                            nav.classList.remove(
+                            item.classList.remove(
                                 "active"
                             );
 
@@ -2455,7 +2746,7 @@ function setupNavigation() {
                     );
 
 
-                    item.classList.add(
+                    link.classList.add(
                         "active"
                     );
 
@@ -2469,11 +2760,11 @@ function setupNavigation() {
 
 
 /* ============================================================
-   STATUS
+   DATA STATUS
    ============================================================ */
 
 function setDataStatus(
-    text
+    value
 ) {
 
     const element =
@@ -2485,85 +2776,74 @@ function setDataStatus(
     if (element) {
 
         element.textContent =
-            text;
+            value;
 
     }
 
 }
 
 
-function setAgentStatus(
-    text
-) {
-
-    const element =
-        document.getElementById(
-            "agentStatus"
-        );
-
-
-    if (element) {
-
-        element.textContent =
-            text;
-
-    }
-
-}
-
-
-function setSidebarAgentStatus(
-    text
-) {
-
-    const element =
-        document.getElementById(
-            "sidebarAgentStatus"
-        );
-
-
-    if (element) {
-
-        element.textContent =
-            text;
-
-    }
-
-}
-
+/* ============================================================
+   UPLOAD STATUS
+   ============================================================ */
 
 function showUploadStatus(
     message,
     isError = false
 ) {
 
-    const element =
+    /*
+     * Current dashboard does not require
+     * a dedicated status element,
+     * so show the message in AI result area
+     * only when appropriate.
+     */
+
+    const status =
         document.getElementById(
             "uploadStatus"
         );
 
 
-    if (!element) {
-        return;
+    if (status) {
+
+        status.textContent =
+            message;
+
+        status.classList.toggle(
+            "error",
+            Boolean(
+                isError
+            )
+        );
+
+        status.style.display =
+            "block";
+
     }
 
 
-    element.textContent =
-        message;
+    if (
+        isError
+    ) {
 
+        console.error(
+            message
+        );
 
-    element.classList.toggle(
-        "error",
-        Boolean(
-            isError
-        )
-    );
+    } else {
+
+        console.log(
+            message
+        );
+
+    }
 
 }
 
 
 /* ============================================================
-   HELPERS
+   TEXT HELPER
    ============================================================ */
 
 function setText(
@@ -2588,6 +2868,10 @@ function setText(
 }
 
 
+/* ============================================================
+   FORMAT INR
+   ============================================================ */
+
 function formatINR(
     value
 ) {
@@ -2604,6 +2888,9 @@ function formatINR(
         number.toLocaleString(
             "en-IN",
             {
+                minimumFractionDigits:
+                    0,
+
                 maximumFractionDigits:
                     2
             }
@@ -2612,6 +2899,10 @@ function formatINR(
 
 }
 
+
+/* ============================================================
+   ESCAPE HTML
+   ============================================================ */
 
 function escapeHTML(
     value
@@ -2645,161 +2936,8 @@ function escapeHTML(
 }
 
 
-function formatToolName(
-    tool
-) {
-
-    return String(
-        tool ||
-        ""
-    )
-    .replace(
-        /_/g,
-        " "
-    )
-    .replace(
-        /\b\w/g,
-        function (
-            char
-        ) {
-
-            return char.toUpperCase();
-
-        }
-    );
-
-}
-
-
-function firstItem(
-    items
-) {
-
-    if (
-        !Array.isArray(
-            items
-        ) ||
-        !items.length
-    ) {
-
-        return "";
-
-    }
-
-
-    const item =
-        items[0];
-
-
-    if (
-        typeof item ===
-        "string"
-    ) {
-
-        return item;
-
-    }
-
-
-    return (
-        item.text ||
-        item.description ||
-        item.title ||
-        ""
-    );
-
-}
-
-
-function summarizeRecurring() {
-
-    if (
-        !financialData ||
-        !Array.isArray(
-            financialData.recurring
-        ) ||
-        !financialData.recurring.length
-    ) {
-
-        return (
-            "No recurring payments detected."
-        );
-
-    }
-
-
-    return (
-
-        financialData.recurring.length +
-        " recurring payment patterns detected."
-
-    );
-
-}
-
-
-function summarizeBudgets() {
-
-    if (
-        !financialData ||
-        !Array.isArray(
-            financialData.budget_progress
-        )
-    ) {
-
-        return (
-            "Budget analysis unavailable."
-        );
-
-    }
-
-
-    const over =
-        financialData.budget_progress.filter(
-            function (
-                item
-            ) {
-
-                return (
-                    Number(
-                        item.percentage ||
-                        0
-                    ) > 100
-                );
-
-            }
-        );
-
-
-    if (
-        over.length
-    ) {
-
-        return (
-
-            over.length +
-            " budget categor" +
-            (
-                over.length > 1
-                    ? "ies"
-                    : "y"
-            ) +
-            " exceeded the configured limit."
-
-        );
-
-    }
-
-
-    return (
-        "No configured budget category exceeded its limit."
-    );
-
-}
-
-
 /* ============================================================
-   SAFE JSON PARSER
+   SAFE JSON
    ============================================================ */
 
 async function safeJson(
@@ -2824,8 +2962,10 @@ async function safeJson(
     } catch (error) {
 
         return {
+
             error:
                 text
+
         };
 
     }
@@ -2834,24 +2974,21 @@ async function safeJson(
 
 
 /* ============================================================
-   OPTIONAL GLOBAL ACCESS
+   GLOBAL FUNCTIONS
+   Required because dashboard.html uses onclick=""
    ============================================================ */
 
-window.FinPilot = {
+window.uploadStatement =
+    uploadStatement;
 
-    uploadStatement:
-        uploadStatement,
+window.askFinPilot =
+    askFinPilot;
 
-    loadDashboardData:
-        loadDashboardData,
+window.loadDashboardData =
+    loadDashboardData;
 
-    askAgent:
-        askAgent,
+window.loadGoalImpact =
+    loadGoalImpact;
 
-    addGoal:
-        addGoal,
-
-    renderGoals:
-        renderGoals
-
-};
+window.loadBudgetAnalysis =
+    loadBudgetAnalysis;
