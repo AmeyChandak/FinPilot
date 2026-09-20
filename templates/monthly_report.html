@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>FinPilot - Monthly Report</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}">
+
+</head>
+
+
+<body>
+
+<div class="app-layout">
+
+    <!-- ================= SIDEBAR ================= -->
+
+    <aside class="sidebar">
+
+        <div class="sidebar-brand">
+
+            <div class="brand-logo">
+                F
+            </div>
+
+            <div>
+
+                <h2>FinPilot</h2>
+
+                <span>
+                    Personal Finance AI
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <nav class="sidebar-nav">
+
+            <a href="/dashboard">
+
+                <span>▦</span>
+
+                Dashboard
+
+            </a>
+
+
+            <a href="/transactions">
+
+                <span>↔</span>
+
+                Transactions
+
+            </a>
+
+
+            <a href="/budgets">
+
+                <span>◫</span>
+
+                Budgets
+
+            </a>
+
+
+            <a href="/goals">
+
+                <span>◎</span>
+
+                Goals
+
+            </a>
+
+
+            <a
+                href="/monthly-report"
+                class="active">
+
+                <span>▤</span>
+
+                Monthly Report
+
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-footer">
+
+            <div class="sidebar-ai">
+
+                <div class="ai-icon">
+                    ✦
+                </div>
+
+                <div>
+
+                    <strong>
+                        FinPilot AI
+                    </strong>
+
+                    <small>
+                        Your finance assistant
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ================= MAIN CONTENT ================= -->
+
+    <main class="main-content">
+
+
+        <!-- HEADER -->
+
+        <header class="top-header">
+
+            <div>
+
+                <h1>
+                    Monthly Financial Report
+                </h1>
+
+                <p>
+                    Review your income, expenses, savings and financial progress.
+                </p>
+
+            </div>
+
+
+            <div class="header-status">
+
+                <span class="status-dot"></span>
+
+                Report Center
+
+            </div>
+
+        </header>
+
+
+        <!-- ================= REPORT CONTROLS ================= -->
+
+        <section class="report-controls">
+
+            <div class="report-control-left">
+
+                <label for="reportMonth">
+                    Select Month
+                </label>
+
+                <input
+                    type="month"
+                    id="reportMonth"
+                >
+
+            </div>
+
+
+            <div class="report-control-actions">
+
+                <button
+                    class="primary-btn"
+                    onclick="generateReport()">
+
+                    Generate Report
+
+                </button>
+
+
+                <button
+                    class="pdf-download-btn"
+                    onclick="downloadPDF()">
+
+                    ↓ Download PDF
+
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= LOADING ================= -->
+
+        <div
+            id="reportLoading"
+            class="report-loading"
+            style="display:none;">
+
+            <div class="loading-spinner"></div>
+
+            <p>
+                FinPilot is preparing your monthly report...
+            </p>
+
+        </div>
+
+
+        <!-- ================= SUMMARY ================= -->
+
+        <section class="report-summary">
+
+
+            <!-- Income -->
+
+            <div class="report-card">
+
+                <div class="report-card-header">
+
+                    <span>
+                        Income
+                    </span>
+
+                    <span class="report-card-icon">
+                        ↑
+                    </span>
+
+                </div>
+
+                <h2 id="reportIncome">
+                    ₹0
+                </h2>
+
+                <p>
+                    Total income
+                </p>
+
+            </div>
+
+
+            <!-- Expenses -->
+
+            <div class="report-card">
+
+                <div class="report-card-header">
+
+                    <span>
+                        Expenses
+                    </span>
+
+                    <span class="report-card-icon">
+                        ↓
+                    </span>
+
+                </div>
+
+                <h2 id="reportExpenses">
+                    ₹0
+                </h2>
+
+                <p>
+                    Total spending
+                </p>
+
+            </div>
+
+
+            <!-- Savings -->
+
+            <div class="report-card">
+
+                <div class="report-card-header">
+
+                    <span>
+                        Savings
+                    </span>
+
+                    <span class="report-card-icon">
+                        ₹
+                    </span>
+
+                </div>
+
+                <h2 id="reportSavings">
+                    ₹0
+                </h2>
+
+                <p>
+                    Amount saved
+                </p>
+
+            </div>
+
+
+            <!-- Savings Rate -->
+
+            <div class="report-card">
+
+                <div class="report-card-header">
+
+                    <span>
+                        Savings Rate
+                    </span>
+
+                    <span class="report-card-icon">
+                        %
+                    </span>
+
+                </div>
+
+                <h2 id="reportSavingsRate">
+                    0%
+                </h2>
+
+                <p>
+                    Income saved
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= REPORT GRID ================= -->
+
+        <section class="report-grid">
+
+
+            <!-- ================= CATEGORY BREAKDOWN ================= -->
+
+            <div class="report-panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <h2>
+                            Spending Breakdown
+                        </h2>
+
+                        <p>
+                            Spending by category for the selected month.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="reportCategories"
+                    class="report-category-list">
+
+                    <div class="empty-report">
+
+                        No category data available.
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ================= INSIGHTS ================= -->
+
+            <div class="report-panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <h2>
+                            FinPilot Insights
+                        </h2>
+
+                        <p>
+                            Automated observations from your financial data.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="reportInsights"
+                    class="report-insights">
+
+                    <div class="empty-report">
+
+                        No insights available.
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= BUDGET PERFORMANCE ================= -->
+
+        <section class="report-panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>
+                        Budget Performance
+                    </h2>
+
+                    <p>
+                        Compare your planned budget with actual spending.
+                    </p>
+
+                </div>
+
+
+                <a
+                    href="/budgets"
+                    class="secondary-btn">
+
+                    Manage Budgets
+
+                </a>
+
+            </div>
+
+
+            <div
+                id="reportBudgets"
+                class="report-budget-list">
+
+                <div class="empty-report">
+
+                    No budget data available.
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= GOAL PROGRESS ================= -->
+
+        <section class="report-panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>
+                        Financial Goals
+                    </h2>
+
+                    <p>
+                        Track progress toward your savings goals.
+                    </p>
+
+                </div>
+
+
+                <a
+                    href="/goals"
+                    class="secondary-btn">
+
+                    Manage Goals
+
+                </a>
+
+            </div>
+
+
+            <div
+                id="reportGoals"
+                class="report-goal-list">
+
+                <div class="empty-report">
+
+                    No goals available.
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= REPORT NOTE ================= -->
+
+        <section class="report-note">
+
+            <div class="report-note-icon">
+                ✦
+            </div>
+
+            <div>
+
+                <strong>
+                    About this report
+                </strong>
+
+                <p>
+                    FinPilot analyzes your recorded transactions,
+                    budgets and goals to summarize your financial activity.
+                    The report is intended for financial awareness and
+                    decision support, not investment advice.
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= FOOTER ================= -->
+
+        <footer class="dashboard-footer">
+
+            <span>
+                FinPilot © 2026
+            </span>
+
+            <span>
+                Personal Finance Decision Support
+            </span>
+
+        </footer>
+
+
+    </main>
+
+</div>
+
+
+<!-- ================= JAVASCRIPT ================= -->
+
+<script>
+
+let currentReportMonth = "";
+
+
+/* ================= FORMAT MONEY ================= */
+
+function formatMoney(value) {
+
+    value = Number(value || 0);
+
+    return "₹" + value.toLocaleString("en-IN", {
+        maximumFractionDigits: 0
+    });
+
+}
+
+
+/* ================= GET CURRENT MONTH ================= */
+
+function getCurrentMonth() {
+
+    const now = new Date();
+
+    const year = now.getFullYear();
+
+    const month = String(
+        now.getMonth() + 1
+    ).padStart(2, "0");
+
+    return `${year}-${month}`;
+
+}
+
+
+/* ================= GENERATE REPORT ================= */
+
+async function generateReport() {
+
+    const monthInput =
+        document.getElementById("reportMonth");
+
+    const loading =
+        document.getElementById("reportLoading");
+
+
+    const month =
+        monthInput.value || getCurrentMonth();
+
+
+    currentReportMonth = month;
+
+
+    loading.style.display = "flex";
+
+
+    try {
+
+        const response = await fetch(
+            `/api/monthly-report?month=${encodeURIComponent(month)}`
+        );
+
+
+        const data = await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error || "Unable to generate report."
+            );
+
+        }
+
+
+        renderSummary(data);
+
+        renderCategories(data);
+
+        renderInsights(data);
+
+        renderBudgets(data);
+
+        renderGoals(data);
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            error.message ||
+            "Something went wrong while generating the report."
+        );
+
+    } finally {
+
+        loading.style.display = "none";
+
+    }
+
+}
+
+
+/* ================= SUMMARY ================= */
+
+function renderSummary(data) {
+
+    document.getElementById("reportIncome").textContent =
+        formatMoney(data.income);
+
+
+    document.getElementById("reportExpenses").textContent =
+        formatMoney(data.expenses);
+
+
+    document.getElementById("reportSavings").textContent =
+        formatMoney(data.savings);
+
+
+    document.getElementById("reportSavingsRate").textContent =
+        `${Number(data.savings_rate || 0).toFixed(1)}%`;
+
+}
+
+
+/* ================= CATEGORIES ================= */
+
+function renderCategories(data) {
+
+    const container =
+        document.getElementById("reportCategories");
+
+
+    const categories =
+        data.category_spending || {};
+
+
+    const entries =
+        Object.entries(categories)
+        .sort((a, b) => b[1] - a[1]);
+
+
+    if (!entries.length) {
+
+        container.innerHTML = `
+            <div class="empty-report">
+                No spending recorded for this month.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    const total =
+        entries.reduce(
+            (sum, item) => sum + Number(item[1] || 0),
+            0
+        );
+
+
+    container.innerHTML =
+        entries.map(([category, amount]) => {
+
+            const percentage =
+                total > 0
+                ? (Number(amount) / total) * 100
+                : 0;
+
+
+            return `
+
+                <div class="report-category-row">
+
+                    <div class="report-category-info">
+
+                        <strong>
+                            ${escapeHtml(category)}
+                        </strong>
+
+                        <span>
+                            ${percentage.toFixed(1)}%
+                        </span>
+
+                    </div>
+
+
+                    <div class="report-category-bar">
+
+                        <div
+                            class="report-category-fill"
+                            style="width:${percentage}%">
+                        </div>
+
+                    </div>
+
+
+                    <div class="report-category-amount">
+
+                        ${formatMoney(amount)}
+
+                    </div>
+
+                </div>
+
+            `;
+
+        }).join("");
+
+}
+
+
+/* ================= INSIGHTS ================= */
+
+function renderInsights(data) {
+
+    const container =
+        document.getElementById("reportInsights");
+
+
+    const insights =
+        data.insights || [];
+
+
+    if (!insights.length) {
+
+        container.innerHTML = `
+            <div class="empty-report">
+                No major insights detected for this month.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        insights.map((insight, index) => {
+
+            return `
+
+                <div class="report-insight">
+
+                    <div class="insight-number">
+                        ${index + 1}
+                    </div>
+
+                    <div>
+                        ${escapeHtml(String(insight))}
+                    </div>
+
+                </div>
+
+            `;
+
+        }).join("");
+
+}
+
+
+/* ================= BUDGETS ================= */
+
+function renderBudgets(data) {
+
+    const container =
+        document.getElementById("reportBudgets");
+
+
+    const budgets =
+        data.budgets || [];
+
+
+    if (!budgets.length) {
+
+        container.innerHTML = `
+            <div class="empty-report">
+                No budgets have been created yet.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        budgets.map(budget => {
+
+            const category =
+                budget.category || "Other";
+
+
+            const budgetAmount =
+                Number(
+                    budget.amount ||
+                    budget.budget ||
+                    0
+                );
+
+
+            const actual =
+                Number(
+                    budget.actual ||
+                    budget.spent ||
+                    0
+                );
+
+
+            const percentage =
+                budgetAmount > 0
+                ? Math.min(
+                    (actual / budgetAmount) * 100,
+                    100
+                )
+                : 0;
+
+
+            let status =
+                "Within Budget";
+
+
+            if (actual > budgetAmount) {
+
+                status = "Over Budget";
+
+            } else if (
+                budgetAmount > 0 &&
+                actual >= budgetAmount * 0.8
+            ) {
+
+                status = "Near Limit";
+
+            }
+
+
+            return `
+
+                <div class="report-budget-row">
+
+                    <div class="budget-main">
+
+                        <strong>
+                            ${escapeHtml(category)}
+                        </strong>
+
+                        <span>
+                            ${formatMoney(actual)}
+                            /
+                            ${formatMoney(budgetAmount)}
+                        </span>
+
+                    </div>
+
+
+                    <div class="budget-progress">
+
+                        <div
+                            class="budget-progress-fill"
+                            style="width:${percentage}%">
+                        </div>
+
+                    </div>
+
+
+                    <div class="budget-status">
+
+                        ${status}
+
+                    </div>
+
+                </div>
+
+            `;
+
+        }).join("");
+
+}
+
+
+/* ================= GOALS ================= */
+
+function renderGoals(data) {
+
+    const container =
+        document.getElementById("reportGoals");
+
+
+    const goals =
+        data.goals || [];
+
+
+    if (!goals.length) {
+
+        container.innerHTML = `
+            <div class="empty-report">
+                No financial goals have been created yet.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        goals.map(goal => {
+
+            const name =
+                goal.name || "Financial Goal";
+
+
+            const target =
+                Number(
+                    goal.target_amount || 0
+                );
+
+
+            const current =
+                Number(
+                    goal.current_amount || 0
+                );
+
+
+            const percentage =
+                target > 0
+                ? Math.min(
+                    (current / target) * 100,
+                    100
+                )
+                : 0;
+
+
+            return `
+
+                <div class="report-goal-row">
+
+                    <div class="goal-main">
+
+                        <strong>
+                            ${escapeHtml(name)}
+                        </strong>
+
+                        <span>
+                            ${formatMoney(current)}
+                            /
+                            ${formatMoney(target)}
+                        </span>
+
+                    </div>
+
+
+                    <div class="goal-progress">
+
+                        <div
+                            class="goal-progress-fill"
+                            style="width:${percentage}%">
+                        </div>
+
+                    </div>
+
+
+                    <div class="goal-percentage">
+
+                        ${percentage.toFixed(0)}%
+
+                    </div>
+
+                </div>
+
+            `;
+
+        }).join("");
+
+}
+
+
+/* ================= PDF ================= */
+
+function downloadPDF() {
+
+    const month =
+        document.getElementById("reportMonth").value
+        || currentReportMonth
+        || getCurrentMonth();
+
+
+    window.location.href =
+        `/api/monthly-report/pdf?month=${encodeURIComponent(month)}`;
+
+}
+
+
+/* ================= HTML ESCAPE ================= */
+
+function escapeHtml(value) {
+
+    return String(value)
+
+        .replace(/&/g, "&amp;")
+
+        .replace(/</g, "&lt;")
+
+        .replace(/>/g, "&gt;")
+
+        .replace(/"/g, "&quot;")
+
+        .replace(/'/g, "&#039;");
+
+}
+
+
+/* ================= PAGE LOAD ================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function() {
+
+        const monthInput =
+            document.getElementById("reportMonth");
+
+
+        const currentMonth =
+            getCurrentMonth();
+
+
+        monthInput.value =
+            currentMonth;
+
+
+        currentReportMonth =
+            currentMonth;
+
+
+        generateReport();
+
+    }
+);
+
+</script>
+
+</body>
+</html>

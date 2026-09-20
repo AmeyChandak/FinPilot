@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>Transactions | FinPilot</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+
+        /* ================= TRANSACTIONS PAGE ================= */
+
+        .transactions-page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .transactions-page-header h1 {
+            font-size: 30px;
+            font-weight: 750;
+            color: #111827;
+        }
+
+        .transactions-page-header p {
+            margin-top: 6px;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .page-kicker {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        /* ================= SUMMARY ================= */
+
+        .transaction-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        .transaction-summary-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+        }
+
+        .transaction-summary-card .label {
+            color: #6b7280;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .transaction-summary-card .value {
+            margin-top: 10px;
+            font-size: 24px;
+            font-weight: 750;
+            color: #111827;
+        }
+
+        .transaction-summary-card .description {
+            margin-top: 5px;
+            color: #9ca3af;
+            font-size: 11px;
+        }
+
+        /* ================= TRANSACTION PANEL ================= */
+
+        .transactions-panel {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 15px;
+            padding: 22px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+        }
+
+        .transactions-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .transaction-search {
+            flex: 1;
+            min-width: 240px;
+
+            position: relative;
+        }
+
+        .transaction-search input {
+            width: 100%;
+
+            padding: 12px 14px 12px 40px;
+
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+
+            outline: none;
+
+            font-size: 13px;
+
+            background: #ffffff;
+
+            transition: 0.2s ease;
+        }
+
+        .transaction-search input:focus {
+            border-color: #111827;
+
+            box-shadow:
+                0 0 0 3px rgba(17, 24, 39, 0.07);
+        }
+
+        .search-icon {
+            position: absolute;
+
+            left: 14px;
+            top: 50%;
+
+            transform: translateY(-50%);
+
+            color: #6b7280;
+
+            font-size: 15px;
+
+            pointer-events: none;
+        }
+
+        .transactions-toolbar select {
+            padding: 11px 13px;
+
+            border: 1px solid #d1d5db;
+
+            border-radius: 10px;
+
+            background: white;
+
+            color: #374151;
+
+            outline: none;
+
+            font-size: 13px;
+        }
+
+        .transactions-toolbar select:focus {
+            border-color: #111827;
+        }
+
+        /* ================= TABLE ================= */
+
+        .transaction-table-wrapper {
+            overflow-x: auto;
+        }
+
+        .transaction-table {
+            width: 100%;
+
+            border-collapse: separate;
+            border-spacing: 0;
+
+            min-width: 760px;
+        }
+
+        .transaction-table thead th {
+            padding: 13px 12px;
+
+            background: #f8fafc;
+
+            color: #64748b;
+
+            font-size: 10px;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.06em;
+
+            font-weight: 750;
+
+            text-align: left;
+
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .transaction-table thead th:first-child {
+            border-radius: 10px 0 0 10px;
+        }
+
+        .transaction-table thead th:last-child {
+            border-radius: 0 10px 10px 0;
+        }
+
+        .transaction-table tbody td {
+            padding: 15px 12px;
+
+            border-bottom: 1px solid #f0f1f3;
+
+            color: #374151;
+
+            font-size: 13px;
+
+            vertical-align: middle;
+        }
+
+        .transaction-table tbody tr {
+            transition: background 0.15s ease;
+        }
+
+        .transaction-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .transaction-date {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .transaction-description {
+            font-weight: 650;
+            color: #111827;
+        }
+
+        .transaction-category {
+            display: inline-flex;
+
+            align-items: center;
+
+            padding: 5px 9px;
+
+            border-radius: 999px;
+
+            background: #f3f4f6;
+
+            color: #4b5563;
+
+            font-size: 10px;
+
+            font-weight: 650;
+        }
+
+        .transaction-type {
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .transaction-type.income {
+            color: #15803d;
+        }
+
+        .transaction-type.expense {
+            color: #b91c1c;
+        }
+
+        .transaction-amount {
+            font-weight: 750;
+
+            text-align: right;
+
+            white-space: nowrap;
+        }
+
+        .transaction-amount.income {
+            color: #15803d;
+        }
+
+        .transaction-amount.expense {
+            color: #111827;
+        }
+
+        .transaction-actions {
+            display: flex;
+
+            justify-content: flex-end;
+
+            gap: 7px;
+        }
+
+        .table-action-btn {
+            border: 1px solid #d1d5db;
+
+            background: #ffffff;
+
+            color: #374151;
+
+            padding: 6px 9px;
+
+            border-radius: 7px;
+
+            font-size: 11px;
+
+            font-weight: 600;
+
+            transition: 0.2s ease;
+        }
+
+        .table-action-btn:hover {
+            background: #f3f4f6;
+
+            border-color: #9ca3af;
+        }
+
+        .table-action-btn.delete:hover {
+            background: #fef2f2;
+
+            border-color: #fecaca;
+
+            color: #b91c1c;
+        }
+
+        /* ================= EMPTY STATE ================= */
+
+        .transaction-empty {
+            padding: 55px 20px;
+
+            text-align: center;
+
+            color: #9ca3af;
+        }
+
+        .transaction-empty-icon {
+            width: 50px;
+            height: 50px;
+
+            margin: 0 auto 12px;
+
+            border-radius: 14px;
+
+            background: #f3f4f6;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            color: #6b7280;
+
+            font-size: 20px;
+        }
+
+        .transaction-empty strong {
+            display: block;
+
+            color: #374151;
+
+            font-size: 14px;
+        }
+
+        .transaction-empty p {
+            margin-top: 5px;
+
+            font-size: 12px;
+        }
+
+        /* =========================================================
+           MODAL
+           ========================================================= */
+
+        .transaction-modal-overlay {
+            position: fixed;
+
+            inset: 0;
+
+            background: rgba(15, 23, 42, 0.55);
+
+            backdrop-filter: blur(3px);
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            padding: 20px;
+
+            z-index: 5000;
+
+            animation: modalFadeIn 0.2s ease;
+        }
+
+        @keyframes modalFadeIn {
+
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+
+        }
+
+        .transaction-modal {
+            width: 100%;
+
+            max-width: 560px;
+
+            max-height: calc(100vh - 40px);
+
+            overflow-y: auto;
+
+            background: #ffffff;
+
+            border-radius: 18px;
+
+            border: 1px solid #e5e7eb;
+
+            box-shadow:
+                0 25px 60px rgba(15, 23, 42, 0.25);
+
+            animation: modalSlideUp 0.22s ease;
+        }
+
+        @keyframes modalSlideUp {
+
+            from {
+                opacity: 0;
+
+                transform: translateY(12px) scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+
+                transform: translateY(0) scale(1);
+            }
+
+        }
+
+        /* Modal header */
+
+        .transaction-modal-header {
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 22px 24px;
+
+            border-bottom: 1px solid #eef0f3;
+        }
+
+        .transaction-modal-kicker {
+            color: #64748b;
+
+            font-size: 10px;
+
+            font-weight: 750;
+
+            letter-spacing: 0.08em;
+
+            text-transform: uppercase;
+
+            margin-bottom: 4px;
+        }
+
+        .transaction-modal-header h2 {
+            color: #111827;
+
+            font-size: 21px;
+
+            font-weight: 750;
+        }
+
+        .modal-close-btn {
+            width: 34px;
+            height: 34px;
+
+            border: 1px solid #e5e7eb;
+
+            background: #ffffff;
+
+            color: #6b7280;
+
+            border-radius: 9px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            font-size: 18px;
+
+            cursor: pointer;
+
+            transition: 0.2s ease;
+        }
+
+        .modal-close-btn:hover {
+            background: #f3f4f6;
+
+            color: #111827;
+        }
+
+        /* Modal body */
+
+        .transaction-modal-body {
+            padding: 23px 24px;
+        }
+
+        .modal-form-grid {
+            display: grid;
+
+            grid-template-columns: 1fr 1fr;
+
+            gap: 16px;
+        }
+
+        .modal-form-group {
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 7px;
+        }
+
+        .modal-form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .modal-form-group label {
+            color: #374151;
+
+            font-size: 12px;
+
+            font-weight: 700;
+        }
+
+        .modal-form-group input,
+        .modal-form-group select {
+
+            width: 100%;
+
+            padding: 11px 12px;
+
+            border: 1px solid #d1d5db;
+
+            border-radius: 10px;
+
+            background: #ffffff;
+
+            color: #111827;
+
+            outline: none;
+
+            font-size: 13px;
+
+            transition: 0.2s ease;
+        }
+
+        .modal-form-group input::placeholder {
+            color: #9ca3af;
+        }
+
+        .modal-form-group input:focus,
+        .modal-form-group select:focus {
+
+            border-color: #111827;
+
+            box-shadow:
+                0 0 0 3px rgba(17, 24, 39, 0.07);
+        }
+
+        /* Modal footer */
+
+        .transaction-modal-footer {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: flex-end;
+
+            gap: 9px;
+
+            padding: 18px 24px;
+
+            border-top: 1px solid #eef0f3;
+
+            background: #fafafa;
+
+            border-radius: 0 0 18px 18px;
+        }
+
+        .modal-cancel-btn {
+
+            border: 1px solid #d1d5db;
+
+            background: #ffffff;
+
+            color: #374151;
+
+            padding: 10px 15px;
+
+            border-radius: 9px;
+
+            font-size: 12px;
+
+            font-weight: 650;
+
+            cursor: pointer;
+
+            transition: 0.2s ease;
+        }
+
+        .modal-cancel-btn:hover {
+
+            background: #f3f4f6;
+
+        }
+
+        .modal-save-btn {
+
+            border: none;
+
+            background: #111827;
+
+            color: #ffffff;
+
+            padding: 10px 17px;
+
+            border-radius: 9px;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            cursor: pointer;
+
+            transition: 0.2s ease;
+        }
+
+        .modal-save-btn:hover {
+
+            background: #1f2937;
+
+            transform: translateY(-1px);
+
+        }
+
+        /* ================= RESPONSIVE ================= */
+
+        @media (max-width: 850px) {
+
+            .transaction-summary {
+
+                grid-template-columns: 1fr 1fr;
+
+            }
+
+        }
+
+        @media (max-width: 650px) {
+
+            .transactions-page-header {
+
+                flex-direction: column;
+
+                align-items: flex-start;
+
+            }
+
+            .transaction-summary {
+
+                grid-template-columns: 1fr;
+
+            }
+
+            .transactions-toolbar {
+
+                flex-direction: column;
+
+                align-items: stretch;
+
+            }
+
+            .transaction-search {
+
+                width: 100%;
+            }
+
+            .modal-form-grid {
+
+                grid-template-columns: 1fr;
+            }
+
+            .modal-form-group.full-width {
+
+                grid-column: auto;
+            }
+
+            .transaction-modal {
+
+                border-radius: 14px;
+            }
+
+            .transaction-modal-header,
+            .transaction-modal-body,
+            .transaction-modal-footer {
+
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div class="app-layout">
+
+
+    <!-- ================= SIDEBAR ================= -->
+
+    <aside class="sidebar">
+
+        <div class="sidebar-brand">
+
+            <div class="brand-logo">
+                F
+            </div>
+
+            <div>
+
+                <h2>FinPilot</h2>
+
+                <span>
+                    Personal Finance AI
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <nav class="sidebar-nav">
+
+            <a href="/dashboard">
+                <span>▦</span>
+                Dashboard
+            </a>
+
+            <a
+                href="/transactions"
+                class="active">
+
+                <span>↔</span>
+                Transactions
+
+            </a>
+
+            <a href="/budgets">
+                <span>◫</span>
+                Budgets
+            </a>
+
+            <a href="/goals">
+                <span>◎</span>
+                Goals
+            </a>
+
+            <a href="/monthly-report">
+                <span>▤</span>
+                Monthly Report
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-footer">
+
+            <div class="sidebar-ai">
+
+                <div class="ai-icon">
+                    ✦
+                </div>
+
+                <div>
+
+                    <strong>
+                        FinPilot AI
+                    </strong>
+
+                    <small>
+                        Your finance assistant
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ================= MAIN ================= -->
+
+    <main class="main-content">
+
+
+        <!-- HEADER -->
+
+        <div class="transactions-page-header">
+
+            <div>
+
+                <div class="page-kicker">
+                    Financial Data
+                </div>
+
+                <h1>
+                    Transactions
+                </h1>
+
+                <p>
+                    Review and manage your financial activity.
+                </p>
+
+            </div>
+
+
+            <button
+                class="primary-btn"
+                onclick="openAddModal()">
+
+                + Add Transaction
+
+            </button>
+
+        </div>
+
+
+        <!-- ================= SUMMARY ================= -->
+
+        <section class="transaction-summary">
+
+            <div class="transaction-summary-card">
+
+                <div class="label">
+                    TOTAL TRANSACTIONS
+                </div>
+
+                <div
+                    class="value"
+                    id="totalTransactions">
+
+                    0
+
+                </div>
+
+                <div class="description">
+                    Recorded financial entries
+                </div>
+
+            </div>
+
+
+            <div class="transaction-summary-card">
+
+                <div class="label">
+                    NET CASH FLOW
+                </div>
+
+                <div
+                    class="value"
+                    id="netCashFlow">
+
+                    ₹0
+
+                </div>
+
+                <div class="description">
+                    Income minus expenses
+                </div>
+
+            </div>
+
+
+            <div class="transaction-summary-card">
+
+                <div class="label">
+                    TOTAL EXPENSES
+                </div>
+
+                <div
+                    class="value"
+                    id="totalExpenses">
+
+                    ₹0
+
+                </div>
+
+                <div class="description">
+                    Total money spent
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= TABLE ================= -->
+
+        <section class="transactions-panel">
+
+
+            <div class="transactions-toolbar">
+
+                <div class="transaction-search">
+
+                    <span class="search-icon">
+                        🔎
+                    </span>
+
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search transactions..."
+                    >
+
+                </div>
+
+
+                <select id="typeFilter">
+
+                    <option value="all">
+                        All Types
+                    </option>
+
+                    <option value="income">
+                        Income
+                    </option>
+
+                    <option value="expense">
+                        Expense
+                    </option>
+
+                </select>
+
+
+                <select id="categoryFilter">
+
+                    <option value="all">
+                        All Categories
+                    </option>
+
+                </select>
+
+
+                <button
+                    class="secondary-btn"
+                    onclick="loadTransactions()">
+
+                    ↻ Refresh
+
+                </button>
+
+            </div>
+
+
+            <div class="transaction-table-wrapper">
+
+                <table class="transaction-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Date
+                            </th>
+
+                            <th>
+                                Description
+                            </th>
+
+                            <th>
+                                Category
+                            </th>
+
+                            <th>
+                                Type
+                            </th>
+
+                            <th style="text-align:right;">
+                                Amount
+                            </th>
+
+                            <th style="text-align:right;">
+                                Action
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="transactionTableBody">
+
+                        <tr>
+
+                            <td
+                                colspan="6"
+                                class="transaction-empty">
+
+                                Loading transactions...
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- FOOTER -->
+
+        <footer class="dashboard-footer">
+
+            <span>
+                FinPilot © 2026
+            </span>
+
+            <span>
+                Personal Finance Decision Support
+            </span>
+
+        </footer>
+
+
+    </main>
+
+</div>
+
+
+<!-- =========================================================
+     ADD / EDIT TRANSACTION MODAL
+     ========================================================= -->
+
+<div
+    id="transactionModal"
+    class="transaction-modal-overlay"
+    style="display:none;">
+
+    <div class="transaction-modal">
+
+
+        <!-- MODAL HEADER -->
+
+        <div class="transaction-modal-header">
+
+            <div>
+
+                <div class="transaction-modal-kicker">
+                    Transaction
+                </div>
+
+                <h2 id="modalTitle">
+                    Add Transaction
+                </h2>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="modal-close-btn"
+                onclick="closeModal()"
+                aria-label="Close">
+
+                ×
+
+            </button>
+
+        </div>
+
+
+        <!-- MODAL BODY -->
+
+        <div class="transaction-modal-body">
+
+            <form id="transactionForm">
+
+                <div class="modal-form-grid">
+
+
+                    <!-- Description -->
+
+                    <div class="modal-form-group full-width">
+
+                        <label for="description">
+                            Description
+                        </label>
+
+                        <input
+                            type="text"
+                            id="description"
+                            placeholder="e.g. Swiggy"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Amount -->
+
+                    <div class="modal-form-group">
+
+                        <label for="amount">
+                            Amount
+                        </label>
+
+                        <input
+                            type="number"
+                            id="amount"
+                            placeholder="500"
+                            min="0"
+                            step="0.01"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Type -->
+
+                    <div class="modal-form-group">
+
+                        <label for="type">
+                            Type
+                        </label>
+
+                        <select
+                            id="type"
+                            required>
+
+                            <option value="expense">
+                                Expense
+                            </option>
+
+                            <option value="income">
+                                Income
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Category -->
+
+                    <div class="modal-form-group">
+
+                        <label for="category">
+                            Category
+                        </label>
+
+                        <input
+                            type="text"
+                            id="category"
+                            placeholder="Food"
+                        >
+
+                    </div>
+
+
+                    <!-- Date -->
+
+                    <div class="modal-form-group">
+
+                        <label for="date">
+                            Date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="date"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+
+        <!-- MODAL FOOTER -->
+
+        <div class="transaction-modal-footer">
+
+            <button
+                type="button"
+                class="modal-cancel-btn"
+                onclick="closeModal()">
+
+                Cancel
+
+            </button>
+
+
+            <button
+                type="button"
+                class="modal-save-btn"
+                onclick="saveTransaction()">
+
+                Save Transaction
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+let allTransactions = [];
+
+let editingTransactionId = null;
+
+
+/* =========================================================
+   FORMAT MONEY
+   ========================================================= */
+
+function formatMoney(value) {
+
+    const amount = Number(value || 0);
+
+    return "₹" + amount.toLocaleString("en-IN", {
+        maximumFractionDigits: 0
+    });
+
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+   ========================================================= */
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+
+/* =========================================================
+   LOAD TRANSACTIONS
+   ========================================================= */
+
+async function loadTransactions() {
+
+    try {
+
+        const response =
+            await fetch("/api/transactions");
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Unable to load transactions."
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if (Array.isArray(data)) {
+
+            allTransactions = data;
+
+        } else if (Array.isArray(data.transactions)) {
+
+            allTransactions = data.transactions;
+
+        } else {
+
+            allTransactions = [];
+
+        }
+
+
+        populateCategoryFilter();
+
+        updateSummary();
+
+        renderTransactions();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        document.getElementById(
+            "transactionTableBody"
+        ).innerHTML = `
+
+            <tr>
+
+                <td
+                    colspan="6"
+                    class="transaction-empty">
+
+                    Unable to load transactions.
+
+                </td>
+
+            </tr>
+
+        `;
+
+    }
+
+}
+
+
+/* =========================================================
+   SUMMARY
+   ========================================================= */
+
+function updateSummary() {
+
+    const total =
+        allTransactions.length;
+
+
+    let income = 0;
+
+    let expenses = 0;
+
+
+    allTransactions.forEach(transaction => {
+
+        const amount =
+            Math.abs(
+                Number(transaction.amount || 0)
+            );
+
+
+        const type =
+            String(
+                transaction.transaction_type ||
+                transaction.type ||
+                ""
+            ).toLowerCase();
+
+
+        if (
+            type === "income" ||
+            Number(transaction.amount) > 0
+        ) {
+
+            income += amount;
+
+        } else {
+
+            expenses += amount;
+
+        }
+
+    });
+
+
+    const net =
+        income - expenses;
+
+
+    document.getElementById(
+        "totalTransactions"
+    ).textContent = total;
+
+
+    document.getElementById(
+        "netCashFlow"
+    ).textContent = formatMoney(net);
+
+
+    document.getElementById(
+        "totalExpenses"
+    ).textContent = formatMoney(expenses);
+
+}
+
+
+/* =========================================================
+   CATEGORY FILTER
+   ========================================================= */
+
+function populateCategoryFilter() {
+
+    const select =
+        document.getElementById(
+            "categoryFilter"
+        );
+
+
+    const categories =
+        [...new Set(
+
+            allTransactions
+
+                .map(
+                    transaction =>
+                        transaction.category
+                )
+
+                .filter(Boolean)
+
+        )]
+
+        .sort();
+
+
+    select.innerHTML = `
+
+        <option value="all">
+            All Categories
+        </option>
+
+    `;
+
+
+    categories.forEach(category => {
+
+        const option =
+            document.createElement("option");
+
+
+        option.value = category;
+
+        option.textContent = category;
+
+
+        select.appendChild(option);
+
+    });
+
+}
+
+
+/* =========================================================
+   FILTER
+   ========================================================= */
+
+function getFilteredTransactions() {
+
+    const search =
+        document.getElementById(
+            "searchInput"
+        ).value
+        .trim()
+        .toLowerCase();
+
+
+    const type =
+        document.getElementById(
+            "typeFilter"
+        ).value;
+
+
+    const category =
+        document.getElementById(
+            "categoryFilter"
+        ).value;
+
+
+    return allTransactions.filter(transaction => {
+
+        const description =
+            String(
+                transaction.description || ""
+            ).toLowerCase();
+
+
+        const transactionCategory =
+            String(
+                transaction.category || ""
+            );
+
+
+        const transactionType =
+            String(
+                transaction.transaction_type ||
+                transaction.type ||
+                ""
+            ).toLowerCase();
+
+
+        const matchesSearch =
+            !search ||
+            description.includes(search) ||
+            transactionCategory.toLowerCase().includes(search);
+
+
+        const matchesType =
+            type === "all" ||
+            transactionType === type;
+
+
+        const matchesCategory =
+            category === "all" ||
+            transactionCategory === category;
+
+
+        return (
+            matchesSearch &&
+            matchesType &&
+            matchesCategory
+        );
+
+    });
+
+}
+
+
+/* =========================================================
+   RENDER TRANSACTIONS
+   ========================================================= */
+
+function renderTransactions() {
+
+    const tbody =
+        document.getElementById(
+            "transactionTableBody"
+        );
+
+
+    const transactions =
+        getFilteredTransactions();
+
+
+    if (!transactions.length) {
+
+        tbody.innerHTML = `
+
+            <tr>
+
+                <td
+                    colspan="6"
+                    class="transaction-empty">
+
+                    <div class="transaction-empty-icon">
+                        ↔
+                    </div>
+
+                    <strong>
+                        No transactions found
+                    </strong>
+
+                    <p>
+                        Try changing your search or filters.
+                    </p>
+
+                </td>
+
+            </tr>
+
+        `;
+
+        return;
+
+    }
+
+
+    tbody.innerHTML =
+        transactions.map(transaction => {
+
+            const id =
+                transaction.id;
+
+
+            const date =
+                transaction.date || "";
+
+
+            const description =
+                transaction.description || "Unknown";
+
+
+            const category =
+                transaction.category || "Other";
+
+
+            const type =
+                String(
+                    transaction.transaction_type ||
+                    transaction.type ||
+                    ""
+                ).toLowerCase();
+
+
+            const rawAmount =
+                Number(
+                    transaction.amount || 0
+                );
+
+
+            const isIncome =
+                type === "income" ||
+                rawAmount > 0;
+
+
+            const amount =
+                Math.abs(rawAmount);
+
+
+            const sign =
+                isIncome ? "+" : "-";
+
+
+            return `
+
+                <tr>
+
+                    <td>
+
+                        <span class="transaction-date">
+
+                            ${escapeHtml(date)}
+
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        <span class="transaction-description">
+
+                            ${escapeHtml(description)}
+
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        <span class="transaction-category">
+
+                            ${escapeHtml(category)}
+
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        <span
+                            class="transaction-type ${
+                                isIncome
+                                    ? "income"
+                                    : "expense"
+                            }">
+
+                            ${
+                                isIncome
+                                    ? "Income"
+                                    : "Expense"
+                            }
+
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        <div
+                            class="transaction-amount ${
+                                isIncome
+                                    ? "income"
+                                    : "expense"
+                            }">
+
+                            ${sign} ${formatMoney(amount)}
+
+                        </div>
+
+                    </td>
+
+
+                    <td>
+
+                        <div class="transaction-actions">
+
+                            <button
+                                class="table-action-btn"
+                                onclick="editTransaction(${id})">
+
+                                Edit
+
+                            </button>
+
+
+                            <button
+                                class="table-action-btn delete"
+                                onclick="deleteTransaction(${id})">
+
+                                Delete
+
+                            </button>
+
+                        </div>
+
+                    </td>
+
+                </tr>
+
+            `;
+
+        }).join("");
+
+}
+
+
+/* =========================================================
+   OPEN ADD MODAL
+   ========================================================= */
+
+function openAddModal() {
+
+    editingTransactionId = null;
+
+
+    document.getElementById(
+        "modalTitle"
+    ).textContent =
+        "Add Transaction";
+
+
+    document.getElementById(
+        "transactionForm"
+    ).reset();
+
+
+    document.getElementById(
+        "type"
+    ).value =
+        "expense";
+
+
+    document.getElementById(
+        "date"
+    ).value =
+        new Date()
+            .toISOString()
+            .split("T")[0];
+
+
+    document.getElementById(
+        "transactionModal"
+    ).style.display =
+        "flex";
+
+}
+
+
+/* =========================================================
+   CLOSE MODAL
+   ========================================================= */
+
+function closeModal() {
+
+    document.getElementById(
+        "transactionModal"
+    ).style.display =
+        "none";
+
+}
+
+
+/* =========================================================
+   EDIT TRANSACTION
+   ========================================================= */
+
+async function editTransaction(id) {
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/transactions/${id}`
+            );
+
+
+        const transaction =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                transaction.error ||
+                "Unable to load transaction."
+            );
+
+        }
+
+
+        editingTransactionId = id;
+
+
+        document.getElementById(
+            "modalTitle"
+        ).textContent =
+            "Edit Transaction";
+
+
+        document.getElementById(
+            "description"
+        ).value =
+            transaction.description || "";
+
+
+        document.getElementById(
+            "amount"
+        ).value =
+            Math.abs(
+                Number(transaction.amount || 0)
+            );
+
+
+        document.getElementById(
+            "type"
+        ).value =
+            String(
+                transaction.transaction_type ||
+                transaction.type ||
+                "expense"
+            ).toLowerCase();
+
+
+        document.getElementById(
+            "category"
+        ).value =
+            transaction.category || "";
+
+
+        document.getElementById(
+            "date"
+        ).value =
+            transaction.date || "";
+
+
+        document.getElementById(
+            "transactionModal"
+        ).style.display =
+            "flex";
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            error.message ||
+            "Unable to edit transaction."
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   SAVE TRANSACTION
+   ========================================================= */
+
+async function saveTransaction() {
+
+    const description =
+        document.getElementById(
+            "description"
+        ).value.trim();
+
+
+    const amount =
+        Number(
+            document.getElementById(
+                "amount"
+            ).value
+        );
+
+
+    const type =
+        document.getElementById(
+            "type"
+        ).value;
+
+
+    const category =
+        document.getElementById(
+            "category"
+        ).value.trim()
+        || "Other";
+
+
+    const date =
+        document.getElementById(
+            "date"
+        ).value;
+
+
+    if (!description) {
+
+        alert(
+            "Please enter a description."
+        );
+
+        return;
+
+    }
+
+
+    if (!amount || amount <= 0) {
+
+        alert(
+            "Please enter a valid amount."
+        );
+
+        return;
+
+    }
+
+
+    if (!date) {
+
+        alert(
+            "Please select a date."
+        );
+
+        return;
+
+    }
+
+
+    const signedAmount =
+        type === "income"
+            ? Math.abs(amount)
+            : -Math.abs(amount);
+
+
+    const payload = {
+
+        date: date,
+
+        description: description,
+
+        amount: signedAmount,
+
+        category: category,
+
+        transaction_type: type,
+
+        source: "manual"
+
+    };
+
+
+    try {
+
+        let response;
+
+
+        if (editingTransactionId) {
+
+            response =
+                await fetch(
+                    `/api/transactions/${editingTransactionId}`,
+                    {
+                        method: "PUT",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify(payload)
+                    }
+                );
+
+        } else {
+
+            response =
+                await fetch(
+                    "/api/transactions",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify(payload)
+                    }
+                );
+
+        }
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                result.error ||
+                "Unable to save transaction."
+            );
+
+        }
+
+
+        closeModal();
+
+        await loadTransactions();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            error.message ||
+            "Unable to save transaction."
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DELETE
+   ========================================================= */
+
+async function deleteTransaction(id) {
+
+    const confirmed =
+        confirm(
+            "Are you sure you want to delete this transaction?"
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/transactions/${id}`,
+                {
+                    method: "DELETE"
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                result.error ||
+                "Unable to delete transaction."
+            );
+
+        }
+
+
+        await loadTransactions();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            error.message ||
+            "Unable to delete transaction."
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   FILTER EVENTS
+   ========================================================= */
+
+document
+    .getElementById("searchInput")
+    .addEventListener(
+        "input",
+        renderTransactions
+    );
+
+
+document
+    .getElementById("typeFilter")
+    .addEventListener(
+        "change",
+        renderTransactions
+    );
+
+
+document
+    .getElementById("categoryFilter")
+    .addEventListener(
+        "change",
+        renderTransactions
+    );
+
+
+/* =========================================================
+   CLOSE MODAL ON OUTSIDE CLICK
+   ========================================================= */
+
+document
+    .getElementById("transactionModal")
+    .addEventListener(
+        "click",
+        function(event) {
+
+            if (
+                event.target ===
+                this
+            ) {
+
+                closeModal();
+
+            }
+
+        }
+    );
+
+
+/* =========================================================
+   ESCAPE KEY
+   ========================================================= */
+
+document.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (
+            event.key === "Escape"
+        ) {
+
+            closeModal();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   INITIAL LOAD
+   ========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function() {
+
+        loadTransactions();
+
+    }
+);
+
+</script>
+
+</body>
+</html>

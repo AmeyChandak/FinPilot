@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>FinPilot | Budgets</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+
+    <style>
+
+        .budget-page {
+            padding: 30px;
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .budget-header {
+            margin-bottom: 25px;
+        }
+
+        .budget-header h1 {
+            margin: 0;
+        }
+
+        .budget-header p {
+            color: #64748b;
+        }
+
+        .budget-form {
+            background: white;
+            padding: 24px;
+            border-radius: 18px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.06);
+            margin-bottom: 25px;
+        }
+
+        .budget-form h2 {
+            margin-top: 0;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns:
+                repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 7px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .save-budget {
+            margin-top: 20px;
+            background: #111827;
+            color: white;
+            border: none;
+            padding: 12px 22px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .save-budget:hover {
+            opacity: 0.9;
+        }
+
+        .budget-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .budget-card {
+            background: white;
+            padding: 22px;
+            border-radius: 18px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.06);
+        }
+
+        .budget-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .budget-card-header h3 {
+            margin: 0;
+            font-size: 19px;
+        }
+
+        .delete-budget {
+            border: none;
+            background: #fee2e2;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .budget-numbers {
+            display: flex;
+            justify-content: space-between;
+            margin: 22px 0 12px;
+        }
+
+        .budget-number small {
+            display: block;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+
+        .budget-number strong {
+            font-size: 19px;
+        }
+
+        .progress-container {
+            height: 10px;
+            background: #e5e7eb;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 20px;
+            transition: width 0.4s ease;
+        }
+
+        .safe {
+            background: #22c55e;
+        }
+
+        .warning {
+            background: #f59e0b;
+        }
+
+        .danger {
+            background: #ef4444;
+        }
+
+        .budget-status {
+            margin-top: 13px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .month-label {
+            color: #64748b;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        .empty-state {
+            background: white;
+            padding: 55px;
+            text-align: center;
+            border-radius: 18px;
+            color: #64748b;
+        }
+
+        .error-message {
+            display: none;
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 700px) {
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .budget-page {
+                padding: 18px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div class="budget-page">
+
+    <!-- ================================= -->
+    <!-- HEADER -->
+    <!-- ================================= -->
+
+    <div class="budget-header">
+
+        <h1>
+            💰 Budgets
+        </h1>
+
+        <p>
+            Set spending limits and track your actual spending.
+        </p>
+
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- BUDGET FORM -->
+    <!-- ================================= -->
+
+    <div class="budget-form">
+
+        <h2>
+            Set Monthly Budget
+        </h2>
+
+        <div class="form-row">
+
+            <div class="form-group">
+
+                <label>
+                    Category
+                </label>
+
+                <select id="budgetCategory">
+
+                    <option value="Food">
+                        Food
+                    </option>
+
+                    <option value="Shopping">
+                        Shopping
+                    </option>
+
+                    <option value="Transport">
+                        Transport
+                    </option>
+
+                    <option value="Entertainment">
+                        Entertainment
+                    </option>
+
+                    <option value="Bills">
+                        Bills
+                    </option>
+
+                    <option value="Rent">
+                        Rent
+                    </option>
+
+                    <option value="Education">
+                        Education
+                    </option>
+
+                    <option value="Healthcare">
+                        Healthcare
+                    </option>
+
+                    <option value="Other">
+                        Other
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label>
+                    Monthly Budget
+                </label>
+
+                <input
+                    type="number"
+                    id="budgetAmount"
+                    placeholder="5000"
+                    min="1"
+                    step="0.01"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label>
+                    Month
+                </label>
+
+                <input
+                    type="month"
+                    id="budgetMonth"
+                >
+
+            </div>
+
+        </div>
+
+
+        <button
+            class="save-budget"
+            onclick="saveBudget()"
+        >
+            💾 Save Budget
+        </button>
+
+
+        <div
+            id="errorMessage"
+            class="error-message"
+        ></div>
+
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- BUDGET CARDS -->
+    <!-- ================================= -->
+
+    <div
+        id="budgetGrid"
+        class="budget-grid"
+    ></div>
+
+
+    <!-- ================================= -->
+    <!-- EMPTY -->
+    <!-- ================================= -->
+
+    <div
+        id="emptyState"
+        class="empty-state"
+        style="display:none;"
+    >
+
+        <h3>
+            No budgets yet
+        </h3>
+
+        <p>
+            Create your first monthly budget above.
+        </p>
+
+    </div>
+
+</div>
+
+
+<script>
+
+let budgets = [];
+
+let transactions = [];
+
+
+// ==========================================
+// FORMAT MONEY
+// ==========================================
+
+function formatMoney(
+    amount
+) {
+
+    return "₹" +
+        Number(
+            amount || 0
+        ).toLocaleString(
+            "en-IN",
+            {
+                maximumFractionDigits: 2
+            }
+        );
+
+}
+
+
+// ==========================================
+// CURRENT MONTH
+// ==========================================
+
+function setCurrentMonth() {
+
+    const input =
+        document.getElementById(
+            "budgetMonth"
+        );
+
+    const now =
+        new Date();
+
+    const month =
+        now.getFullYear()
+        + "-"
+        + String(
+            now.getMonth() + 1
+        ).padStart(
+            2,
+            "0"
+        );
+
+    input.value =
+        month;
+
+}
+
+
+// ==========================================
+// LOAD BUDGETS + TRANSACTIONS
+// ==========================================
+
+async function loadBudgets() {
+
+    try {
+
+        const budgetResponse =
+            await fetch(
+                "/api/budgets"
+            );
+
+        const budgetData =
+            await budgetResponse.json();
+
+
+        if (!budgetResponse.ok) {
+
+            throw new Error(
+                budgetData.error ||
+                "Could not load budgets."
+            );
+
+        }
+
+
+        budgets =
+            budgetData.budgets || [];
+
+
+        const transactionResponse =
+            await fetch(
+                "/api/transactions"
+            );
+
+        const transactionData =
+            await transactionResponse.json();
+
+
+        if (!transactionResponse.ok) {
+
+            throw new Error(
+                transactionData.error ||
+                "Could not load transactions."
+            );
+
+        }
+
+
+        transactions =
+            transactionData.transactions || [];
+
+
+        renderBudgets();
+
+    }
+
+    catch (error) {
+
+        console.error(
+            error
+        );
+
+        showError(
+            error.message
+        );
+
+    }
+
+}
+
+
+// ==========================================
+// ACTUAL SPENDING
+// ==========================================
+
+function getActualSpending(
+    category,
+    month
+) {
+
+    let total = 0;
+
+
+    transactions.forEach(
+        transaction => {
+
+            if (
+                transaction.category !==
+                category
+            ) {
+
+                return;
+
+            }
+
+
+            if (
+                transaction.type !==
+                "expense"
+            ) {
+
+                return;
+
+            }
+
+
+            if (
+                !String(
+                    transaction.date
+                ).startsWith(
+                    month
+                )
+            ) {
+
+                return;
+
+            }
+
+
+            total += Math.abs(
+                Number(
+                    transaction.amount
+                )
+            );
+
+        }
+    );
+
+
+    return total;
+
+}
+
+
+// ==========================================
+// RENDER BUDGETS
+// ==========================================
+
+function renderBudgets() {
+
+    const grid =
+        document.getElementById(
+            "budgetGrid"
+        );
+
+    const empty =
+        document.getElementById(
+            "emptyState"
+        );
+
+
+    grid.innerHTML =
+        "";
+
+
+    if (
+        budgets.length === 0
+    ) {
+
+        empty.style.display =
+            "block";
+
+        return;
+
+    }
+
+
+    empty.style.display =
+        "none";
+
+
+    budgets.forEach(
+        budget => {
+
+            const actual =
+                getActualSpending(
+                    budget.category,
+                    budget.month
+                );
+
+
+            const budgetAmount =
+                Number(
+                    budget.amount
+                );
+
+
+            const percentage =
+                budgetAmount > 0
+                ? (
+                    actual /
+                    budgetAmount
+                ) * 100
+                : 0;
+
+
+            const progress =
+                Math.min(
+                    percentage,
+                    100
+                );
+
+
+            let status;
+
+            let statusClass;
+
+
+            if (
+                percentage > 100
+            ) {
+
+                status =
+                    `⚠️ Over budget by ${
+                        formatMoney(
+                            actual -
+                            budgetAmount
+                        )
+                    }`;
+
+                statusClass =
+                    "danger";
+
+            }
+
+            else if (
+                percentage >= 80
+            ) {
+
+                status =
+                    `⚠️ ${
+                        Math.round(
+                            percentage
+                        )
+                    }% of budget used`;
+
+                statusClass =
+                    "warning";
+
+            }
+
+            else {
+
+                status =
+                    `✓ ${
+                        Math.round(
+                            percentage
+                        )
+                    }% of budget used`;
+
+                statusClass =
+                    "safe";
+
+            }
+
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+            card.className =
+                "budget-card";
+
+
+            card.innerHTML = `
+
+                <div class="budget-card-header">
+
+                    <h3>
+                        ${escapeHtml(
+                            budget.category
+                        )}
+                    </h3>
+
+                    <button
+                        class="delete-budget"
+                        onclick="deleteBudget(
+                            ${budget.id}
+                        )"
+                    >
+                        🗑️
+                    </button>
+
+                </div>
+
+
+                <div class="budget-numbers">
+
+                    <div class="budget-number">
+
+                        <small>
+                            Budget
+                        </small>
+
+                        <strong>
+                            ${formatMoney(
+                                budgetAmount
+                            )}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="budget-number">
+
+                        <small>
+                            Spent
+                        </small>
+
+                        <strong>
+                            ${formatMoney(
+                                actual
+                            )}
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="progress-container">
+
+                    <div
+                        class="progress-bar ${statusClass}"
+                        style="width:${progress}%"
+                    ></div>
+
+                </div>
+
+
+                <div class="budget-status">
+
+                    ${status}
+
+                </div>
+
+
+                <div class="month-label">
+
+                    📅 ${budget.month}
+
+                </div>
+
+            `;
+
+
+            grid.appendChild(
+                card
+            );
+
+        }
+    );
+
+}
+
+
+// ==========================================
+// ESCAPE HTML
+// ==========================================
+
+function escapeHtml(
+    text
+) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+    div.textContent =
+        text;
+
+    return div.innerHTML;
+
+}
+
+
+// ==========================================
+// SHOW ERROR
+// ==========================================
+
+function showError(
+    message
+) {
+
+    const box =
+        document.getElementById(
+            "errorMessage"
+        );
+
+    box.innerText =
+        "❌ " + message;
+
+    box.style.display =
+        "block";
+
+}
+
+
+// ==========================================
+// SAVE BUDGET
+// ==========================================
+
+async function saveBudget() {
+
+    const category =
+        document.getElementById(
+            "budgetCategory"
+        ).value;
+
+
+    const amount =
+        Number(
+            document.getElementById(
+                "budgetAmount"
+            ).value
+        );
+
+
+    const month =
+        document.getElementById(
+            "budgetMonth"
+        ).value;
+
+
+    const errorBox =
+        document.getElementById(
+            "errorMessage"
+        );
+
+
+    errorBox.style.display =
+        "none";
+
+
+    if (
+        !amount ||
+        amount <= 0
+    ) {
+
+        showError(
+            "Please enter a valid budget amount."
+        );
+
+        return;
+
+    }
+
+
+    if (!month) {
+
+        showError(
+            "Please select a month."
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/budgets",
+                {
+
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            category:
+                                category,
+
+                            amount:
+                                amount,
+
+                            month:
+                                month
+
+                        })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not save budget."
+            );
+
+        }
+
+
+        document.getElementById(
+            "budgetAmount"
+        ).value =
+            "";
+
+
+        await loadBudgets();
+
+    }
+
+    catch (error) {
+
+        showError(
+            error.message
+        );
+
+    }
+
+}
+
+
+// ==========================================
+// DELETE BUDGET
+// ==========================================
+
+async function deleteBudget(
+    id
+) {
+
+    const confirmed =
+        confirm(
+            "Are you sure you want to delete this budget?"
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/budgets/${id}`,
+                {
+                    method:
+                        "DELETE"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Could not delete budget."
+            );
+
+        }
+
+
+        await loadBudgets();
+
+    }
+
+    catch (error) {
+
+        showError(
+            error.message
+        );
+
+    }
+
+}
+
+
+// ==========================================
+// START
+// ==========================================
+
+setCurrentMonth();
+
+loadBudgets();
+
+</script>
+
+</body>
+
+</html>
