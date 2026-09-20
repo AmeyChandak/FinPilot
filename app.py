@@ -1,42 +1,22 @@
-from flask import (
-    Flask,
-    render_template,
-    request,
-    jsonify,
-    send_file,
-    session,
-    redirect,
-    url_for,
-)
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 from werkzeug.utils import secure_filename
 
 import os
 import re
 import sqlite3
 import uuid
-
 from datetime import datetime, date, timedelta
 from io import BytesIO
 
 import fitz
 import pandas as pd
-
 from docx import Document
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import (
-    getSampleStyleSheet,
-    ParagraphStyle,
-)
 from reportlab.lib.enums import TA_CENTER
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    Table,
-    TableStyle,
-)
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 from finance_engine import (
     analyze_file,
@@ -52,29 +32,21 @@ from ai_extractor import (
 
 from database import (
     DATABASE,
-
-    # USER / AUTH
     create_user,
     get_user_by_id,
     get_user_by_email,
     verify_user_password,
     update_user_profile,
     update_user_password,
-
-    # TRANSACTIONS
     add_transactions as db_add_transactions,
     get_transactions as db_get_transactions,
     add_transaction as db_add_transaction,
     get_transaction as db_get_transaction,
     update_transaction as db_update_transaction,
     delete_transaction as db_delete_transaction,
-
-    # BUDGETS
     get_budgets as db_get_budgets,
     set_budget as db_set_budget,
     delete_budget as db_delete_budget,
-
-    # GOALS
     get_goals as db_get_goals,
     add_goal as db_add_goal,
     get_goal as db_get_goal,
@@ -84,21 +56,31 @@ from database import (
 
 
 # ============================================================
-# APP CONFIGURATION
+# APP CONFIG
 # ============================================================
 
 app = Flask(__name__)
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+DATA_FOLDER = os.path.join(BASE_DIR, "data")
 
-# ------------------------------------------------------------
-# PRODUCTION MODE
-# ------------------------------------------------------------
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(DATA_FOLDER, exist_ok=True)
 
-IS_PRODUCTION = (
-    os.environ.get(
-        "FLASK_ENV",
-        ""
-    ).lower() == "production"
+PRODUCTION = os.environ.get("FLASK_ENV", "").lower() == "production"
+SECRET_KEY = os.environ.get("SECRET_KEY")
+
+if PRODUCTION and not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY must be set in production.")
+
+app.config["SECRET_KEY"] = SECRET_KEY or "finpilot-dev-secret-change-me"
+
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+app.config["SESSION_COOKIE_SECURE"] = (
+    PRODUCTION
     or
     os.environ.get(
         "SESSION_COOKIE_SECURE",
@@ -106,89 +88,14 @@ IS_PRODUCTION = (
     ).lower() == "true"
 )
 
-
-# ------------------------------------------------------------
-# SECRET KEY
-# ------------------------------------------------------------
-
-secret_key = os.environ.get(
-    "SECRET_KEY"
-)
-
-if IS_PRODUCTION and not secret_key:
-
-    raise RuntimeError(
-        "SECRET_KEY must be set in production."
-    )
-
-
-app.config["SECRET_KEY"] = (
-    secret_key
-    or
-    "finpilot-dev-secret-change-me"
-)
-
-
-# ------------------------------------------------------------
-# SESSION SETTINGS
-# ------------------------------------------------------------
-
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-
-app.config["SESSION_COOKIE_SECURE"] = IS_PRODUCTION
-
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
-    days=7
-)
-
-
-# ------------------------------------------------------------
-# UPLOAD LIMIT
-# ------------------------------------------------------------
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
 
 app.config["MAX_CONTENT_LENGTH"] = (
     16 * 1024 * 1024
 )
 
-
-# ------------------------------------------------------------
-# PROJECT PATHS
-# ------------------------------------------------------------
-
-BASE_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)
-
-UPLOAD_FOLDER = os.path.join(
-    BASE_DIR,
-    "uploads"
-)
-
-DATA_FOLDER = os.path.join(
-    BASE_DIR,
-    "data"
-)
-
-DEMO_FILE = os.path.join(
-    DATA_FOLDER,
-    "demo_transactions.csv"
-)
-
-
-os.makedirs(
-    UPLOAD_FOLDER,
-    exist_ok=True
-)
-
-
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-
-# ------------------------------------------------------------
-# ALLOWED FILES
-# ------------------------------------------------------------
 
 ALLOWED_EXTENSIONS = {
     "csv",
@@ -202,10 +109,6 @@ ALLOWED_EXTENSIONS = {
 }
 
 
-# ============================================================
-# PUBLIC ROUTES
-# ============================================================
-
 PUBLIC_PATHS = {
     "/",
     "/login",
@@ -216,9 +119,8 @@ PUBLIC_PATHS = {
 
 
 # ============================================================
-# AUTHENTICATION + USER SCOPING
+# AUTH / USER SCOPING
 # ============================================================
-
 
 def get_user_count():
 
@@ -242,17 +144,11 @@ def get_user_count():
         conn.close()
 
 
-# ------------------------------------------------------------
-
-
 def current_user_id():
 
     return session.get(
         "user_id"
     )
-
-
-# ------------------------------------------------------------
 
 
 def current_user():
@@ -267,16 +163,9 @@ def current_user():
     )
 
 
-# ------------------------------------------------------------
-
-
 def claim_legacy_data(
     user_id
 ):
-    """
-    Assign old records created before authentication
-    to the first registered user.
-    """
 
     conn = sqlite3.connect(
         DATABASE,
@@ -285,10 +174,9 @@ def claim_legacy_data(
 
     try:
 
-        cursor = conn.cursor()
+        cur = conn.cursor()
 
-
-        cursor.execute(
+        cur.execute(
             """
             UPDATE transactions
             SET user_id = ?
@@ -299,8 +187,7 @@ def claim_legacy_data(
             )
         )
 
-
-        cursor.execute(
+        cur.execute(
             """
             UPDATE budgets
             SET user_id = ?
@@ -311,8 +198,7 @@ def claim_legacy_data(
             )
         )
 
-
-        cursor.execute(
+        cur.execute(
             """
             UPDATE goals
             SET user_id = ?
@@ -322,7 +208,6 @@ def claim_legacy_data(
                 user_id,
             )
         )
-
 
         conn.commit()
 
@@ -334,7 +219,6 @@ def claim_legacy_data(
 # ============================================================
 # USER-SCOPED DATABASE WRAPPERS
 # ============================================================
-
 
 def get_transactions(
     *args,
@@ -350,9 +234,6 @@ def get_transactions(
         *args,
         **kwargs
     )
-
-
-# ------------------------------------------------------------
 
 
 def get_transaction(
@@ -373,9 +254,6 @@ def get_transaction(
     )
 
 
-# ------------------------------------------------------------
-
-
 def add_transaction(
     *args,
     **kwargs
@@ -392,9 +270,6 @@ def add_transaction(
     )
 
 
-# ------------------------------------------------------------
-
-
 def add_transactions(
     *args,
     **kwargs
@@ -409,9 +284,6 @@ def add_transactions(
         *args,
         **kwargs
     )
-
-
-# ------------------------------------------------------------
 
 
 def update_transaction(
@@ -432,9 +304,6 @@ def update_transaction(
     )
 
 
-# ------------------------------------------------------------
-
-
 def delete_transaction(
     transaction_id,
     *args,
@@ -453,9 +322,6 @@ def delete_transaction(
     )
 
 
-# ------------------------------------------------------------
-
-
 def get_budgets(
     *args,
     **kwargs
@@ -472,9 +338,6 @@ def get_budgets(
     )
 
 
-# ------------------------------------------------------------
-
-
 def set_budget(
     *args,
     **kwargs
@@ -489,9 +352,6 @@ def set_budget(
         *args,
         **kwargs
     )
-
-
-# ------------------------------------------------------------
 
 
 def delete_budget(
@@ -512,9 +372,6 @@ def delete_budget(
     )
 
 
-# ------------------------------------------------------------
-
-
 def get_goals(
     *args,
     **kwargs
@@ -531,9 +388,6 @@ def get_goals(
     )
 
 
-# ------------------------------------------------------------
-
-
 def add_goal(
     *args,
     **kwargs
@@ -548,9 +402,6 @@ def add_goal(
         *args,
         **kwargs
     )
-
-
-# ------------------------------------------------------------
 
 
 def get_goal(
@@ -571,9 +422,6 @@ def get_goal(
     )
 
 
-# ------------------------------------------------------------
-
-
 def update_goal(
     goal_id,
     *args,
@@ -590,9 +438,6 @@ def update_goal(
         *args,
         **kwargs
     )
-
-
-# ------------------------------------------------------------
 
 
 def delete_goal(
@@ -617,46 +462,26 @@ def delete_goal(
 # AUTHENTICATION GUARD
 # ============================================================
 
-
 @app.before_request
 def authentication_guard():
 
     path = request.path
 
-
-    # Static files remain public
-
-    if path.startswith(
-        "/static/"
+    if (
+        path.startswith("/static/")
+        or
+        path in PUBLIC_PATHS
     ):
 
         return None
 
-
-    # Explicit public paths
-
-    if path in PUBLIC_PATHS:
-
-        return None
-
-
-    # Check current session
-
     if current_user_id():
 
-        user = current_user()
-
-        if user:
+        if current_user():
 
             return None
 
-
-        # Invalid session
-
         session.clear()
-
-
-    # API / agent calls return JSON
 
     if (
         path.startswith("/api/")
@@ -673,12 +498,9 @@ def authentication_guard():
                 "Authentication required.",
 
             "redirect":
-                "/login",
+                "/login"
 
         }), 401
-
-
-    # Normal pages redirect
 
     return redirect(
         url_for("login")
@@ -689,16 +511,11 @@ def authentication_guard():
 # AUTH ROUTES
 # ============================================================
 
-
 @app.route(
     "/login",
     methods=["GET", "POST"]
 )
 def login():
-
-    # --------------------------------------------------------
-    # GET
-    # --------------------------------------------------------
 
     if request.method == "GET":
 
@@ -712,11 +529,6 @@ def login():
             "login.html"
         )
 
-
-    # --------------------------------------------------------
-    # POST
-    # --------------------------------------------------------
-
     try:
 
         data = (
@@ -727,14 +539,12 @@ def login():
             request.form.to_dict()
         )
 
-
         email = str(
             data.get(
                 "email",
                 ""
             )
         ).strip().lower()
-
 
         password = str(
             data.get(
@@ -743,64 +553,34 @@ def login():
             )
         )
 
-
         if not email or not password:
 
-            message = (
-                "Email and password are required."
-            )
+            return jsonify({
 
-            if request.is_json:
+                "success":
+                    False,
 
-                return jsonify({
+                "error":
+                    "Email and password are required."
 
-                    "success":
-                        False,
-
-                    "error":
-                        message,
-
-                }), 400
-
-
-            return render_template(
-                "login.html",
-                error=message
-            ), 400
-
+            }), 400
 
         user = verify_user_password(
             email,
             password
         )
 
-
         if not user:
 
-            message = (
-                "Invalid email or password."
-            )
+            return jsonify({
 
-            if request.is_json:
+                "success":
+                    False,
 
-                return jsonify({
+                "error":
+                    "Invalid email or password."
 
-                    "success":
-                        False,
-
-                    "error":
-                        message,
-
-                }), 401
-
-
-            return render_template(
-                "login.html",
-                error=message
-            ), 401
-
-
-        # Fresh session
+            }), 401
 
         session.clear()
 
@@ -818,40 +598,31 @@ def login():
             user["email"]
         )
 
+        return jsonify({
 
-        if request.is_json:
+            "success":
+                True,
 
-            return jsonify({
+            "message":
+                "Login successful.",
 
-                "success":
-                    True,
+            "user": {
 
-                "message":
-                    "Login successful.",
+                "id":
+                    user["id"],
 
-                "user": {
+                "name":
+                    user["name"],
 
-                    "id":
-                        user["id"],
+                "email":
+                    user["email"]
 
-                    "name":
-                        user["name"],
+            },
 
-                    "email":
-                        user["email"],
+            "redirect":
+                "/dashboard"
 
-                },
-
-                "redirect":
-                    "/dashboard",
-
-            })
-
-
-        return redirect(
-            url_for("dashboard")
-        )
-
+        })
 
     except Exception as exc:
 
@@ -860,37 +631,24 @@ def login():
             repr(exc)
         )
 
-        if request.is_json:
+        return jsonify({
 
-            return jsonify({
+            "success":
+                False,
 
-                "success":
-                    False,
+            "error":
+                "Login failed."
 
-                "error":
-                    "Login failed.",
-
-            }), 500
-
-
-        return render_template(
-            "login.html",
-            error="Login failed. Please try again."
-        ), 500
+        }), 500
 
 
 # ============================================================
-
 
 @app.route(
     "/signup",
     methods=["GET", "POST"]
 )
 def signup():
-
-    # --------------------------------------------------------
-    # GET
-    # --------------------------------------------------------
 
     if request.method == "GET":
 
@@ -904,11 +662,6 @@ def signup():
             "signup.html"
         )
 
-
-    # --------------------------------------------------------
-    # POST
-    # --------------------------------------------------------
-
     try:
 
         data = (
@@ -919,14 +672,12 @@ def signup():
             request.form.to_dict()
         )
 
-
         name = str(
             data.get(
                 "name",
                 ""
             )
         ).strip()
-
 
         email = str(
             data.get(
@@ -935,14 +686,12 @@ def signup():
             )
         ).strip().lower()
 
-
         password = str(
             data.get(
                 "password",
                 ""
             )
         )
-
 
         confirm_password = str(
 
@@ -959,12 +708,13 @@ def signup():
 
         )
 
-
-        # ----------------------------------------------------
-        # VALIDATION
-        # ----------------------------------------------------
-
-        if not name or not email or not password:
+        if (
+            not name
+            or
+            not email
+            or
+            not password
+        ):
 
             return jsonify({
 
@@ -972,10 +722,9 @@ def signup():
                     False,
 
                 "error":
-                    "Name, email and password are required.",
+                    "Name, email and password are required."
 
             }), 400
-
 
         if len(password) < 6:
 
@@ -985,10 +734,9 @@ def signup():
                     False,
 
                 "error":
-                    "Password must contain at least 6 characters.",
+                    "Password must contain at least 6 characters."
 
             }), 400
-
 
         if (
             confirm_password
@@ -1002,10 +750,9 @@ def signup():
                     False,
 
                 "error":
-                    "Passwords do not match.",
+                    "Passwords do not match."
 
             }), 400
-
 
         if get_user_by_email(email):
 
@@ -1015,14 +762,9 @@ def signup():
                     False,
 
                 "error":
-                    "An account with this email already exists.",
+                    "An account with this email already exists."
 
             }), 409
-
-
-        # ----------------------------------------------------
-        # CREATE USER
-        # ----------------------------------------------------
 
         user_id = create_user(
 
@@ -1030,10 +772,9 @@ def signup():
 
             email=email,
 
-            password=password,
+            password=password
 
         )
-
 
         if not user_id:
 
@@ -1043,25 +784,15 @@ def signup():
                     False,
 
                 "error":
-                    "Could not create the account.",
+                    "Could not create the account."
 
             }), 400
-
-
-        # ----------------------------------------------------
-        # FIRST ACCOUNT GETS OLD DEMO DATA
-        # ----------------------------------------------------
 
         if get_user_count() == 1:
 
             claim_legacy_data(
                 user_id
             )
-
-
-        # ----------------------------------------------------
-        # LOGIN USER
-        # ----------------------------------------------------
 
         session.clear()
 
@@ -1078,7 +809,6 @@ def signup():
         session["user_email"] = (
             email
         )
-
 
         return jsonify({
 
@@ -1097,15 +827,14 @@ def signup():
                     name,
 
                 "email":
-                    email,
+                    email
 
             },
 
             "redirect":
-                "/dashboard",
+                "/dashboard"
 
         })
-
 
     except Exception as exc:
 
@@ -1120,13 +849,12 @@ def signup():
                 False,
 
             "error":
-                "Could not create the account.",
+                "Could not create the account."
 
         }), 500
 
 
 # ============================================================
-
 
 @app.route(
     "/logout",
@@ -1136,7 +864,6 @@ def logout():
 
     session.clear()
 
-
     if request.is_json:
 
         return jsonify({
@@ -1144,14 +871,10 @@ def logout():
             "success":
                 True,
 
-            "message":
-                "Logged out successfully.",
-
             "redirect":
-                "/login",
+                "/login"
 
         })
-
 
     return redirect(
         url_for("login")
@@ -1159,7 +882,6 @@ def logout():
 
 
 # ============================================================
-
 
 @app.route(
     "/profile",
@@ -1178,7 +900,6 @@ def profile_page():
 
 # ============================================================
 
-
 @app.route(
     "/api/profile",
     methods=["GET", "PUT"]
@@ -1193,7 +914,6 @@ def profile_api():
             user_id
         )
 
-
         if not user:
 
             return jsonify({
@@ -1202,12 +922,9 @@ def profile_api():
                     False,
 
                 "error":
-                    "User not found.",
+                    "User not found."
 
             }), 404
-
-
-        # GET
 
         if request.method == "GET":
 
@@ -1217,40 +934,23 @@ def profile_api():
                     True,
 
                 "user":
-                    user,
+                    user
 
             })
-
-
-        # PUT
 
         data = request.get_json(
             silent=True
         ) or {}
 
-
-        name = data.get(
-            "name"
-        )
-
-
-        email = data.get(
-            "email"
-        )
-
-
-        updated_ok = update_user_profile(
+        if not update_user_profile(
 
             user_id,
 
-            name=name,
+            name=data.get("name"),
 
-            email=email,
+            email=data.get("email")
 
-        )
-
-
-        if not updated_ok:
+        ):
 
             return jsonify({
 
@@ -1261,15 +961,13 @@ def profile_api():
                     (
                         "Could not update profile. "
                         "Email may already be in use."
-                    ),
+                    )
 
             }), 400
-
 
         updated = get_user_by_id(
             user_id
         )
-
 
         session["user_name"] = (
             updated["name"]
@@ -1278,7 +976,6 @@ def profile_api():
         session["user_email"] = (
             updated["email"]
         )
-
 
         return jsonify({
 
@@ -1289,10 +986,9 @@ def profile_api():
                 "Profile updated successfully.",
 
             "user":
-                updated,
+                updated
 
         })
-
 
     except Exception as exc:
 
@@ -1307,13 +1003,12 @@ def profile_api():
                 False,
 
             "error":
-                "Profile update failed.",
+                "Profile update failed."
 
         }), 500
 
 
 # ============================================================
-
 
 @app.route(
     "/api/profile/password",
@@ -1327,26 +1022,19 @@ def change_password():
             silent=True
         ) or {}
 
-
         current_password = str(
-
             data.get(
                 "current_password",
                 ""
             )
-
         )
 
-
         new_password = str(
-
             data.get(
                 "new_password",
                 ""
             )
-
         )
-
 
         if (
             not current_password
@@ -1363,48 +1051,9 @@ def change_password():
                     (
                         "Current and new password "
                         "are required."
-                    ),
+                    )
 
             }), 400
-
-
-        user = current_user()
-
-
-        if not user:
-
-            return jsonify({
-
-                "success":
-                    False,
-
-                "error":
-                    "User not found.",
-
-            }), 404
-
-
-        authenticated = verify_user_password(
-
-            user["email"],
-
-            current_password
-
-        )
-
-
-        if not authenticated:
-
-            return jsonify({
-
-                "success":
-                    False,
-
-                "error":
-                    "Current password is incorrect.",
-
-            }), 401
-
 
         if len(new_password) < 6:
 
@@ -1417,21 +1066,13 @@ def change_password():
                     (
                         "New password must contain "
                         "at least 6 characters."
-                    ),
+                    )
 
             }), 400
 
+        user = current_user()
 
-        updated = update_user_password(
-
-            user["id"],
-
-            new_password
-
-        )
-
-
-        if not updated:
+        if not user:
 
             return jsonify({
 
@@ -1439,10 +1080,45 @@ def change_password():
                     False,
 
                 "error":
-                    "Could not update password.",
+                    "User not found."
+
+            }), 404
+
+        if not verify_user_password(
+
+            user["email"],
+
+            current_password
+
+        ):
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "Current password is incorrect."
+
+            }), 401
+
+        if not update_user_password(
+
+            user["id"],
+
+            new_password
+
+        ):
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "Could not update password."
 
             }), 400
-
 
         return jsonify({
 
@@ -1450,10 +1126,9 @@ def change_password():
                 True,
 
             "message":
-                "Password changed successfully.",
+                "Password changed successfully."
 
         })
-
 
     except Exception as exc:
 
@@ -1468,15 +1143,14 @@ def change_password():
                 False,
 
             "error":
-                "Password change failed.",
+                "Password change failed."
 
         }), 500
 
 
 # ============================================================
-# GENERAL HELPERS
+# HELPERS
 # ============================================================
-
 
 def allowed_file(
     filename
@@ -1484,7 +1158,9 @@ def allowed_file(
 
     return (
 
-        "." in filename
+        "."
+        in
+        filename
 
         and
 
@@ -1498,9 +1174,6 @@ def allowed_file(
     )
 
 
-# ------------------------------------------------------------
-
-
 def clean_amount(
     value
 ):
@@ -1509,17 +1182,11 @@ def clean_amount(
 
         return 0.0
 
-
     try:
 
-        value = str(
-            value
-        )
+        cleaned = (
 
-
-        value = (
-
-            value
+            str(value)
 
             .replace(
                 "₹",
@@ -1550,18 +1217,13 @@ def clean_amount(
 
         )
 
-
         return float(
-            value
+            cleaned
         )
-
 
     except Exception:
 
         return 0.0
-
-
-# ------------------------------------------------------------
 
 
 def transaction_amount(
@@ -1571,22 +1233,17 @@ def transaction_amount(
     try:
 
         return float(
-
             transaction.get(
                 "amount",
                 0
             )
             or
             0
-
         )
 
     except Exception:
 
         return 0.0
-
-
-# ------------------------------------------------------------
 
 
 def get_transaction_type(
@@ -1606,39 +1263,33 @@ def get_transaction_type(
 
         )
 
-        or ""
+        or
+        ""
 
     ).lower()
-
-
-# ------------------------------------------------------------
 
 
 def is_income(
     transaction
 ):
 
+    tx_type = get_transaction_type(
+        transaction
+    )
+
     amount = transaction_amount(
         transaction
     )
 
-    transaction_type = get_transaction_type(
-        transaction
-    )
-
-
     return (
 
-        transaction_type == "income"
+        tx_type == "income"
 
         or
 
         amount > 0
 
     )
-
-
-# ------------------------------------------------------------
 
 
 def is_expense(
@@ -1650,35 +1301,31 @@ def is_expense(
     )
 
 
-# ------------------------------------------------------------
-
-
 def parse_date_from_text(
     text
 ):
 
     text = str(
         text
-    ).lower().strip()
-
+    ).lower()
 
     today = date.today()
-
 
     if "today" in text:
 
         return today.isoformat()
 
-
     if "yesterday" in text:
 
         return (
-            today -
+
+            today
+            -
             timedelta(
                 days=1
             )
-        ).isoformat()
 
+        ).isoformat()
 
     patterns = [
 
@@ -1699,7 +1346,6 @@ def parse_date_from_text(
 
     ]
 
-
     for pattern, fmt in patterns:
 
         match = re.search(
@@ -1707,11 +1353,9 @@ def parse_date_from_text(
             text
         )
 
-
         if not match:
 
             continue
-
 
         try:
 
@@ -1723,19 +1367,57 @@ def parse_date_from_text(
 
             )
 
-
             return parsed.date().isoformat()
-
 
         except ValueError:
 
             pass
 
-
     return today.isoformat()
 
 
-# ------------------------------------------------------------
+def extract_pdf_text(
+    filepath
+):
+
+    document = fitz.open(
+        filepath
+    )
+
+    try:
+
+        return "\n".join(
+
+            page.get_text()
+
+            for page
+            in document
+
+        )
+
+    finally:
+
+        document.close()
+
+
+def extract_docx_text(
+    filepath
+):
+
+    document = Document(
+        filepath
+    )
+
+    return "\n".join(
+
+        paragraph.text
+
+        for paragraph
+        in document.paragraphs
+
+        if paragraph.text.strip()
+
+    )
 
 
 def transaction_dataframe(
@@ -1744,13 +1426,11 @@ def transaction_dataframe(
 
     rows = []
 
-
     for transaction in transactions:
 
         amount = transaction_amount(
             transaction
         )
-
 
         rows.append({
 
@@ -1767,10 +1447,17 @@ def transaction_dataframe(
                 ),
 
             "Amount":
+
                 (
                     -abs(amount)
-                    if is_expense(transaction)
-                    else abs(amount)
+
+                    if is_expense(
+                        transaction
+                    )
+
+                    else
+
+                    abs(amount)
                 ),
 
             "Category":
@@ -1781,16 +1468,12 @@ def transaction_dataframe(
 
         })
 
-
     return pd.DataFrame(
         rows
     )
 
 
-# ------------------------------------------------------------
-
-
-def analysis_for_transactions(
+def analyze_transactions(
     transactions
 ):
 
@@ -1799,16 +1482,16 @@ def analysis_for_transactions(
         return {
 
             "income":
-                0.0,
+                0,
 
             "expenses":
-                0.0,
+                0,
 
             "savings":
-                0.0,
+                0,
 
             "savings_rate":
-                0.0,
+                0,
 
             "transaction_count":
                 0,
@@ -1830,66 +1513,65 @@ def analysis_for_transactions(
 
         }
 
-
-    dataframe = transaction_dataframe(
-        transactions
-    )
-
-
     result = analyze_dataframe(
-        dataframe
-    )
 
+        transaction_dataframe(
+            transactions
+        )
+
+    ) or {}
 
     result["transactions"] = (
         transactions
     )
 
-
     result["transaction_count"] = (
         len(transactions)
     )
 
-
     result["income"] = float(
+
         result.get(
             "income",
             0
         )
         or
         0
+
     )
 
-
     result["expenses"] = float(
+
         result.get(
             "expenses",
             0
         )
         or
         0
+
     )
 
-
     result["savings"] = float(
+
         result.get(
             "savings",
             0
         )
         or
         0
+
     )
 
-
     result["savings_rate"] = float(
+
         result.get(
             "savings_rate",
             0
         )
         or
         0
-    )
 
+    )
 
     result["category_spending"] = (
 
@@ -1897,11 +1579,12 @@ def analysis_for_transactions(
             "category_spending",
             {}
         )
+
         or
+
         {}
 
     )
-
 
     result["recurring"] = (
 
@@ -1909,11 +1592,12 @@ def analysis_for_transactions(
             "recurring",
             []
         )
+
         or
+
         []
 
     )
-
 
     result["unusual"] = (
 
@@ -1921,11 +1605,12 @@ def analysis_for_transactions(
             "unusual",
             []
         )
+
         or
+
         []
 
     )
-
 
     result["monthly_spending"] = (
 
@@ -1933,106 +1618,24 @@ def analysis_for_transactions(
             "monthly_spending",
             {}
         )
+
         or
+
         {}
 
     )
 
-
     return result
 
 
-# ------------------------------------------------------------
-
-
-def extract_pdf_text(
-    filepath
-):
-
-    document = fitz.open(
-        filepath
-    )
-
-
-    try:
-
-        return "\n".join(
-
-            page.get_text()
-
-            for page in document
-
-        )
-
-    finally:
-
-        document.close()
-
-
-# ------------------------------------------------------------
-
-
-def extract_docx_text(
-    filepath
-):
-
-    document = Document(
-        filepath
-    )
-
-
-    return "\n".join(
-
-        paragraph.text
-
-        for paragraph
-        in document.paragraphs
-
-        if paragraph.text.strip()
-
-    )
-
-
-# ------------------------------------------------------------
-
-
-def prepare_ai_transactions(
-    extracted_transactions
-):
-
-    if not extracted_transactions:
-
-        return []
-
-
-    dataframe = ai_transactions_to_dataframe(
-
-        extracted_transactions
-
-    )
-
-
-    if dataframe.empty:
-
-        return []
-
-
-    return dataframe.to_dict(
-        orient="records"
-    )
-
-
-# ------------------------------------------------------------
-
-
-def records_for_storage(
-    rows
+def normalize_records(
+    rows,
+    source="upload"
 ):
 
     records = []
 
-
-    for row in rows:
+    for row in rows or []:
 
         amount = clean_amount(
 
@@ -2049,7 +1652,6 @@ def records_for_storage(
 
         )
 
-
         description = str(
 
             row.get(
@@ -2065,11 +1667,9 @@ def records_for_storage(
 
         ).strip()
 
-
         if not description:
 
             continue
-
 
         records.append({
 
@@ -2093,16 +1693,11 @@ def records_for_storage(
 
                 ),
 
-
             "description":
-
                 description,
 
-
             "amount":
-
                 abs(amount),
-
 
             "category":
 
@@ -2114,29 +1709,32 @@ def records_for_storage(
                             "Other"
                         )
                     )
+
                     or
+
                     "Other"
                 ),
-
 
             "type":
 
                 (
                     "income"
-                    if amount > 0
-                    else "expense"
-                ),
 
+                    if amount > 0
+
+                    else
+
+                    "expense"
+                ),
 
             "source":
 
                 row.get(
                     "source",
-                    "upload"
+                    source
                 ),
 
         })
-
 
     return records
 
@@ -2144,7 +1742,6 @@ def records_for_storage(
 # ============================================================
 # PAGE ROUTES
 # ============================================================
-
 
 @app.route("/")
 def index():
@@ -2155,13 +1752,9 @@ def index():
             url_for("dashboard")
         )
 
-
     return render_template(
         "index.html"
     )
-
-
-# ------------------------------------------------------------
 
 
 @app.route("/dashboard")
@@ -2172,18 +1765,12 @@ def dashboard():
     )
 
 
-# ------------------------------------------------------------
-
-
 @app.route("/transactions")
 def transactions_page():
 
     return render_template(
         "transactions.html"
     )
-
-
-# ------------------------------------------------------------
 
 
 @app.route("/budgets")
@@ -2194,18 +1781,12 @@ def budgets_page():
     )
 
 
-# ------------------------------------------------------------
-
-
 @app.route("/dashboard/budgets")
 def dashboard_budgets_page():
 
     return render_template(
         "budgets.html"
     )
-
-
-# ------------------------------------------------------------
 
 
 @app.route("/goals")
@@ -2216,18 +1797,12 @@ def goals_page():
     )
 
 
-# ------------------------------------------------------------
-
-
 @app.route("/dashboard/goals")
 def dashboard_goals_page():
 
     return render_template(
         "goals.html"
     )
-
-
-# ------------------------------------------------------------
 
 
 @app.route("/monthly-report")
@@ -2239,9 +1814,8 @@ def monthly_report_page():
 
 
 # ============================================================
-# FILE UPLOAD
+# UPLOAD
 # ============================================================
-
 
 @app.route(
     "/upload",
@@ -2249,14 +1823,7 @@ def monthly_report_page():
 )
 def upload_file():
 
-    filepath = None
-
-
     try:
-
-        # ----------------------------------------------------
-        # CHECK FILE
-        # ----------------------------------------------------
 
         if "file" not in request.files:
 
@@ -2266,15 +1833,13 @@ def upload_file():
                     False,
 
                 "error":
-                    "No file uploaded.",
+                    "No file uploaded."
 
             }), 400
-
 
         file = request.files[
             "file"
         ]
-
 
         if (
             not file
@@ -2288,10 +1853,9 @@ def upload_file():
                     False,
 
                 "error":
-                    "No file selected.",
+                    "No file selected."
 
             }), 400
-
 
         if not allowed_file(
             file.filename
@@ -2303,19 +1867,13 @@ def upload_file():
                     False,
 
                 "error":
-                    "Unsupported file format.",
+                    "Unsupported file format."
 
             }), 400
-
-
-        # ----------------------------------------------------
-        # SECURE UNIQUE FILENAME
-        # ----------------------------------------------------
 
         original_name = secure_filename(
             file.filename
         )
-
 
         if not original_name:
 
@@ -2325,18 +1883,19 @@ def upload_file():
                     False,
 
                 "error":
-                    "Invalid file name.",
+                    "Invalid file name."
 
             }), 400
 
-
         filename = (
 
-            f"{uuid.uuid4().hex[:10]}_"
-            f"{original_name}"
+            uuid.uuid4().hex[:10]
+            +
+            "_"
+            +
+            original_name
 
         )
-
 
         filepath = os.path.join(
 
@@ -2348,34 +1907,13 @@ def upload_file():
 
         )
 
-
         file.save(
             filepath
         )
 
-
-        if not os.path.exists(
-            filepath
-        ):
-
-            return jsonify({
-
-                "success":
-                    False,
-
-                "error":
-                    (
-                        "Uploaded file could not "
-                        "be saved on the server."
-                    ),
-
-            }), 500
-
-
         extension = (
 
-            filename
-            .rsplit(
+            filename.rsplit(
                 ".",
                 1
             )[1]
@@ -2383,17 +1921,16 @@ def upload_file():
 
         )
 
-
         analysis = None
 
-        source_transactions = []
+        extracted_transactions = []
 
-        save_rows = []
+        storage_rows = []
 
 
-        # ====================================================
+        # ----------------------------------------------------
         # CSV / EXCEL
-        # ====================================================
+        # ----------------------------------------------------
 
         if extension in {
             "csv",
@@ -2401,12 +1938,15 @@ def upload_file():
             "xls"
         }:
 
-            analysis = analyze_file(
-                filepath
-            ) or {}
+            analysis = (
+                analyze_file(
+                    filepath
+                )
+                or
+                {}
+            )
 
-
-            source_transactions = (
+            extracted_transactions = (
 
                 analysis.get(
                     "transactions",
@@ -2415,15 +1955,14 @@ def upload_file():
 
             )
 
-
-            save_rows = (
-                source_transactions
+            storage_rows = (
+                extracted_transactions
             )
 
 
-        # ====================================================
+        # ----------------------------------------------------
         # PDF
-        # ====================================================
+        # ----------------------------------------------------
 
         elif extension == "pdf":
 
@@ -2431,7 +1970,6 @@ def upload_file():
                 filepath
             )
 
-
             extracted = (
                 extract_from_text(
                     text
@@ -2440,8 +1978,7 @@ def upload_file():
                 {}
             )
 
-
-            source_transactions = (
+            extracted_transactions = (
 
                 extracted.get(
                     "transactions",
@@ -2450,28 +1987,32 @@ def upload_file():
 
             )
 
+            if extracted_transactions:
 
-            save_rows = (
-                prepare_ai_transactions(
-                    source_transactions
+                dataframe = (
+                    ai_transactions_to_dataframe(
+                        extracted_transactions
+                    )
                 )
-            )
 
+                storage_rows = dataframe.to_dict(
+                    orient="records"
+                )
 
-            if save_rows:
+                if storage_rows:
 
-                analysis = analyze_dataframe(
-
-                    pd.DataFrame(
-                        save_rows
+                    analysis = (
+                        analyze_dataframe(
+                            dataframe
+                        )
+                        or
+                        {}
                     )
 
-                )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # DOCX
-        # ====================================================
+        # ----------------------------------------------------
 
         elif extension == "docx":
 
@@ -2479,7 +2020,6 @@ def upload_file():
                 filepath
             )
 
-
             extracted = (
                 extract_from_text(
                     text
@@ -2488,8 +2028,7 @@ def upload_file():
                 {}
             )
 
-
-            source_transactions = (
+            extracted_transactions = (
 
                 extracted.get(
                     "transactions",
@@ -2498,28 +2037,32 @@ def upload_file():
 
             )
 
+            if extracted_transactions:
 
-            save_rows = (
-                prepare_ai_transactions(
-                    source_transactions
+                dataframe = (
+                    ai_transactions_to_dataframe(
+                        extracted_transactions
+                    )
                 )
-            )
 
+                storage_rows = dataframe.to_dict(
+                    orient="records"
+                )
 
-            if save_rows:
+                if storage_rows:
 
-                analysis = analyze_dataframe(
-
-                    pd.DataFrame(
-                        save_rows
+                    analysis = (
+                        analyze_dataframe(
+                            dataframe
+                        )
+                        or
+                        {}
                     )
 
-                )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # IMAGE
-        # ====================================================
+        # ----------------------------------------------------
 
         else:
 
@@ -2531,8 +2074,7 @@ def upload_file():
                 {}
             )
 
-
-            source_transactions = (
+            extracted_transactions = (
 
                 extracted.get(
                     "transactions",
@@ -2541,116 +2083,100 @@ def upload_file():
 
             )
 
+            if extracted_transactions:
 
-            save_rows = (
-                prepare_ai_transactions(
-                    source_transactions
+                dataframe = (
+                    ai_transactions_to_dataframe(
+                        extracted_transactions
+                    )
                 )
-            )
 
+                storage_rows = dataframe.to_dict(
+                    orient="records"
+                )
 
-            if save_rows:
+                if storage_rows:
 
-                analysis = analyze_dataframe(
-
-                    pd.DataFrame(
-                        save_rows
+                    analysis = (
+                        analyze_dataframe(
+                            dataframe
+                        )
+                        or
+                        {}
                     )
 
-                )
 
+        # ----------------------------------------------------
+        # NORMALIZE
+        # ----------------------------------------------------
 
-        # ====================================================
-        # NORMALIZE FOR DATABASE
-        # ====================================================
+        records = normalize_records(
 
-        normalized_records = (
-            records_for_storage(
-                save_rows
-            )
+            storage_rows,
+
+            source="upload"
+
         )
 
 
-        added_count = 0
+        # ----------------------------------------------------
+        # SAVE
+        # ----------------------------------------------------
 
-        skipped_count = 0
-
-
-        # ====================================================
-        # SAVE DATABASE
-        # ====================================================
-
-        if normalized_records:
+        if records:
 
             save_result = add_transactions(
-
-                normalized_records
-
+                records
             )
 
+        else:
 
-            if isinstance(
-                save_result,
-                dict
-            ):
+            save_result = {
 
-                added_count = int(
+                "added":
+                    0,
 
-                    save_result.get(
-                        "added",
-                        0
-                    )
+                "skipped":
+                    0
 
-                )
+            }
 
 
-                skipped_count = int(
+        if not isinstance(
+            save_result,
+            dict
+        ):
 
-                    save_result.get(
-                        "skipped",
-                        0
-                    )
+            save_result = {
 
-                )
+                "added":
+                    0,
+
+                "skipped":
+                    0
+
+            }
 
 
-        # ====================================================
-        # EMPTY ANALYSIS FALLBACK
-        # ====================================================
+        # ----------------------------------------------------
+        # FALLBACK
+        # ----------------------------------------------------
 
         if analysis is None:
 
-            analysis = (
-                analysis_for_transactions(
-                    []
-                )
+            analysis = analyze_transactions(
+                []
             )
 
 
         analysis["transactions"] = (
-
-            source_transactions
-            or
-            analysis.get(
-                "transactions",
-                []
-            )
-
+            extracted_transactions
         )
-
 
         analysis["transaction_count"] = (
-
-            len(
-                normalized_records
-            )
-
+            len(records)
         )
 
-
-        # ====================================================
-        # RESPONSE
-        # ====================================================
 
         return jsonify({
 
@@ -2658,9 +2184,10 @@ def upload_file():
                 True,
 
             "message":
+
                 (
                     "Successfully analyzed "
-                    f"{len(source_transactions)} "
+                    f"{len(extracted_transactions)} "
                     "transaction(s)."
                 ),
 
@@ -2668,10 +2195,20 @@ def upload_file():
                 original_name,
 
             "added":
-                added_count,
+                int(
+                    save_result.get(
+                        "added",
+                        0
+                    )
+                ),
 
             "skipped":
-                skipped_count,
+                int(
+                    save_result.get(
+                        "skipped",
+                        0
+                    )
+                ),
 
             "analysis":
                 analysis,
@@ -2686,14 +2223,13 @@ def upload_file():
             repr(exc)
         )
 
-
         return jsonify({
 
             "success":
                 False,
 
             "error":
-                str(exc),
+                str(exc)
 
         }), 500
 
@@ -2701,7 +2237,6 @@ def upload_file():
 # ============================================================
 # DASHBOARD API
 # ============================================================
-
 
 @app.route(
     "/api/dashboard",
@@ -2713,13 +2248,9 @@ def dashboard_api():
 
         transactions = get_transactions()
 
-
-        analysis = (
-            analysis_for_transactions(
-                transactions
-            )
+        analysis = analyze_transactions(
+            transactions
         )
-
 
         income = (
             analysis["income"]
@@ -2733,13 +2264,8 @@ def dashboard_api():
             analysis["savings"]
         )
 
-
         insights = []
 
-
-        # ----------------------------------------------------
-        # SAVINGS INSIGHT
-        # ----------------------------------------------------
 
         if income > 0:
 
@@ -2748,13 +2274,11 @@ def dashboard_api():
                 income
             ) * 100
 
-
             if rate >= 30:
 
                 insights.append(
                     "Your recorded savings rate is above 30% this month."
                 )
-
 
             elif rate >= 15:
 
@@ -2762,17 +2286,12 @@ def dashboard_api():
                     "You maintained a positive savings rate."
                 )
 
-
             else:
 
                 insights.append(
                     "Your savings rate is relatively low."
                 )
 
-
-        # ----------------------------------------------------
-        # EXPENSE INSIGHT
-        # ----------------------------------------------------
 
         if expenses > 0:
 
@@ -2785,10 +2304,6 @@ def dashboard_api():
             )
 
 
-        # ----------------------------------------------------
-        # SAVINGS
-        # ----------------------------------------------------
-
         if savings > 0:
 
             insights.append(
@@ -2797,7 +2312,6 @@ def dashboard_api():
                 f"₹{savings:,.0f}."
 
             )
-
 
         elif (
             income > 0
@@ -2810,72 +2324,43 @@ def dashboard_api():
             )
 
 
-        # ----------------------------------------------------
-        # HIGHEST CATEGORY
-        # ----------------------------------------------------
-
-        category_spending = (
+        categories = (
 
             analysis.get(
                 "category_spending",
                 {}
             )
+
             or
+
             {}
 
         )
 
 
-        if category_spending:
+        if categories:
 
             highest_category = max(
 
-                category_spending,
+                categories,
 
-                key=category_spending.get
-
-            )
-
-
-            highest_amount = (
-
-                category_spending[
-                    highest_category
-                ]
+                key=categories.get
 
             )
-
 
             insights.append(
 
-                f"{highest_category} is your "
-                f"highest spending category at "
-                f"₹{highest_amount:,.0f}."
-
-            )
-
-
-        # ----------------------------------------------------
-        # FINAL
-        # ----------------------------------------------------
-
-        analysis["insights"] = (
-            insights
-        )
-
-
-        analysis["recent_transactions"] = (
-
-            list(
-
-                reversed(
-
-                    transactions[-10:]
-
+                (
+                    f"{highest_category} is your highest "
+                    f"spending category at "
+                    f"₹{categories[highest_category]:,.0f}."
                 )
 
             )
 
+
+        analysis["insights"] = (
+            insights
         )
 
 
@@ -2891,14 +2376,13 @@ def dashboard_api():
             repr(exc)
         )
 
-
         return jsonify({
 
             "success":
                 False,
 
             "error":
-                str(exc),
+                str(exc)
 
         }), 500
 
@@ -2906,7 +2390,6 @@ def dashboard_api():
 # ============================================================
 # TRANSACTIONS API
 # ============================================================
-
 
 @app.route(
     "/api/transactions",
@@ -2923,7 +2406,6 @@ def transactions_api():
 
         })
 
-
     except Exception as exc:
 
         return jsonify({
@@ -2935,7 +2417,6 @@ def transactions_api():
 
 
 # ============================================================
-
 
 @app.route(
     "/api/transactions",
@@ -2953,7 +2434,6 @@ def create_transaction():
             {}
         )
 
-
         description = str(
 
             data.get(
@@ -2962,17 +2442,6 @@ def create_transaction():
             )
 
         ).strip()
-
-
-        if not description:
-
-            return jsonify({
-
-                "error":
-                    "Description is required."
-
-            }), 400
-
 
         amount = clean_amount(
 
@@ -2983,18 +2452,7 @@ def create_transaction():
 
         )
 
-
-        if amount <= 0:
-
-            return jsonify({
-
-                "error":
-                    "Amount must be greater than zero."
-
-            }), 400
-
-
-        transaction_type = str(
+        tx_type = str(
 
             data.get(
 
@@ -3010,24 +2468,42 @@ def create_transaction():
         ).lower()
 
 
-        if transaction_type not in {
+        if not description:
 
+            return jsonify({
+
+                "error":
+                    "Description is required."
+
+            }), 400
+
+
+        if amount <= 0:
+
+            return jsonify({
+
+                "error":
+                    "Amount must be greater than zero."
+
+            }), 400
+
+
+        if tx_type not in {
             "income",
             "expense"
-
         }:
 
-            transaction_type = (
-                "expense"
-            )
+            tx_type = "expense"
 
 
-        transaction_date = (
+        tx_date = (
 
             data.get(
                 "date"
             )
+
             or
+
             date.today().isoformat()
 
         )
@@ -3038,7 +2514,9 @@ def create_transaction():
             data.get(
                 "category"
             )
+
             or
+
             categorize(
                 description
             )
@@ -3046,9 +2524,9 @@ def create_transaction():
         )
 
 
-        transaction_id = add_transaction(
+        tx_id = add_transaction(
 
-            date=transaction_date,
+            date=tx_date,
 
             description=description,
 
@@ -3056,7 +2534,7 @@ def create_transaction():
 
             category=category,
 
-            transaction_type=transaction_type,
+            transaction_type=tx_type,
 
             source=data.get(
                 "source",
@@ -3075,7 +2553,7 @@ def create_transaction():
                 "Transaction added successfully.",
 
             "id":
-                transaction_id,
+                tx_id
 
         })
 
@@ -3087,7 +2565,6 @@ def create_transaction():
             repr(exc)
         )
 
-
         return jsonify({
 
             "error":
@@ -3097,7 +2574,6 @@ def create_transaction():
 
 
 # ============================================================
-
 
 @app.route(
     "/api/transactions/<int:transaction_id>",
@@ -3110,9 +2586,7 @@ def get_single_transaction(
     try:
 
         transaction = get_transaction(
-
             transaction_id
-
         )
 
 
@@ -3146,7 +2620,6 @@ def get_single_transaction(
 
 # ============================================================
 
-
 @app.route(
     "/api/transactions/<int:transaction_id>",
     methods=["PUT"]
@@ -3158,9 +2631,7 @@ def edit_transaction(
     try:
 
         existing = get_transaction(
-
             transaction_id
-
         )
 
 
@@ -3183,13 +2654,12 @@ def edit_transaction(
         )
 
 
-        transaction_date = (
+        tx_date = data.get(
 
-            data.get(
-                "date",
-                existing.get(
-                    "date"
-                )
+            "date",
+
+            existing.get(
+                "date"
             )
 
         )
@@ -3239,15 +2709,15 @@ def edit_transaction(
         )
 
 
-        transaction_type = str(
+        tx_type = str(
 
             data.get(
 
                 "transaction_type",
 
-                existing.get(
+                data.get(
 
-                    "transaction_type",
+                    "type",
 
                     existing.get(
                         "type",
@@ -3281,23 +2751,19 @@ def edit_transaction(
             }), 400
 
 
-        if transaction_type not in {
-
+        if tx_type not in {
             "income",
             "expense"
-
         }:
 
-            transaction_type = (
-                "expense"
-            )
+            tx_type = "expense"
 
 
         update_transaction(
 
             transaction_id,
 
-            date=transaction_date,
+            date=tx_date,
 
             description=description,
 
@@ -3305,14 +2771,7 @@ def edit_transaction(
 
             category=category,
 
-            transaction_type=transaction_type
-
-        )
-
-
-        updated = get_transaction(
-
-            transaction_id
+            transaction_type=tx_type
 
         )
 
@@ -3326,7 +2785,9 @@ def edit_transaction(
                 "Transaction updated successfully.",
 
             "transaction":
-                updated,
+                get_transaction(
+                    transaction_id
+                )
 
         })
 
@@ -3338,7 +2799,6 @@ def edit_transaction(
             repr(exc)
         )
 
-
         return jsonify({
 
             "error":
@@ -3348,7 +2808,6 @@ def edit_transaction(
 
 
 # ============================================================
-
 
 @app.route(
     "/api/transactions/<int:transaction_id>",
@@ -3360,14 +2819,9 @@ def remove_transaction(
 
     try:
 
-        existing = get_transaction(
-
+        if not get_transaction(
             transaction_id
-
-        )
-
-
-        if not existing:
+        ):
 
             return jsonify({
 
@@ -3388,7 +2842,7 @@ def remove_transaction(
                 True,
 
             "message":
-                "Transaction deleted successfully.",
+                "Transaction deleted successfully."
 
         })
 
@@ -3404,9 +2858,8 @@ def remove_transaction(
 
 
 # ============================================================
-# BUDGETS API
+# BUDGET API
 # ============================================================
-
 
 @app.route(
     "/api/budgets",
@@ -3436,7 +2889,6 @@ def budgets_api():
 
 # ============================================================
 
-
 @app.route(
     "/api/budgets",
     methods=["POST"]
@@ -3453,7 +2905,6 @@ def create_budget():
             {}
         )
 
-
         category = str(
 
             data.get(
@@ -3462,16 +2913,6 @@ def create_budget():
             )
 
         ).strip()
-
-
-        if not category:
-
-            return jsonify({
-
-                "error":
-                    "Category is required."
-
-            }), 400
 
 
         amount = clean_amount(
@@ -3484,6 +2925,31 @@ def create_budget():
         )
 
 
+        month = str(
+
+            data.get(
+                "month"
+            )
+
+            or
+
+            date.today().strftime(
+                "%Y-%m"
+            )
+
+        )
+
+
+        if not category:
+
+            return jsonify({
+
+                "error":
+                    "Category is required."
+
+            }), 400
+
+
         if amount <= 0:
 
             return jsonify({
@@ -3492,19 +2958,6 @@ def create_budget():
                     "Budget amount must be greater than zero."
 
             }), 400
-
-
-        month = str(
-
-            data.get(
-                "month"
-            )
-            or
-            date.today().strftime(
-                "%Y-%m"
-            )
-
-        )
 
 
         if not re.fullmatch(
@@ -3540,7 +2993,7 @@ def create_budget():
                 "Budget saved successfully.",
 
             "id":
-                budget_id,
+                budget_id
 
         })
 
@@ -3552,7 +3005,6 @@ def create_budget():
             repr(exc)
         )
 
-
         return jsonify({
 
             "error":
@@ -3562,7 +3014,6 @@ def create_budget():
 
 
 # ============================================================
-
 
 @app.route(
     "/api/budgets/<int:budget_id>",
@@ -3574,9 +3025,6 @@ def remove_budget(
 
     try:
 
-        budgets = get_budgets()
-
-
         exists = any(
 
             int(
@@ -3585,11 +3033,12 @@ def remove_budget(
                     -1
                 )
             )
+
             ==
             budget_id
 
             for budget
-            in budgets
+            in get_budgets()
 
         )
 
@@ -3615,7 +3064,7 @@ def remove_budget(
                 True,
 
             "message":
-                "Budget deleted successfully.",
+                "Budget deleted successfully."
 
         })
 
@@ -3634,7 +3083,6 @@ def remove_budget(
 # BUDGET ANALYSIS
 # ============================================================
 
-
 @app.route(
     "/api/budget-analysis",
     methods=["GET"]
@@ -3647,14 +3095,13 @@ def budget_analysis():
 
         transactions = get_transactions()
 
+        actuals = {}
 
-        category_actuals = {}
 
-
-        for transaction in transactions:
+        for tx in transactions:
 
             if not is_expense(
-                transaction
+                tx
             ):
 
                 continue
@@ -3662,7 +3109,7 @@ def budget_analysis():
 
             category = str(
 
-                transaction.get(
+                tx.get(
                     "category",
                     "Other"
                 )
@@ -3670,9 +3117,9 @@ def budget_analysis():
             )
 
 
-            category_actuals[category] = (
+            actuals[category] = (
 
-                category_actuals.get(
+                actuals.get(
                     category,
                     0
                 )
@@ -3680,11 +3127,9 @@ def budget_analysis():
                 +
 
                 abs(
-
                     transaction_amount(
-                        transaction
+                        tx
                     )
-
                 )
 
             )
@@ -3693,7 +3138,8 @@ def budget_analysis():
         results = []
 
 
-        for budget in budgets:
+        for budget
+        in budgets:
 
             category = str(
 
@@ -3711,7 +3157,9 @@ def budget_analysis():
                     "amount",
                     0
                 )
+
                 or
+
                 0
 
             )
@@ -3719,54 +3167,44 @@ def budget_analysis():
 
             actual = float(
 
-                category_actuals.get(
+                actuals.get(
                     category,
                     0
                 )
+
                 or
+
                 0
 
             )
 
 
-            remaining = (
-                budget_amount -
-                actual
-            )
+            used = (
 
-
-            used_percent = (
-
-                (
-                    actual /
-                    budget_amount
-                )
-                * 100
+                actual /
+                budget_amount *
+                100
 
                 if budget_amount > 0
 
-                else 0
+                else
+
+                0
 
             )
 
 
-            if used_percent >= 100:
+            if used >= 100:
 
-                status = (
-                    "over"
-                )
+                status = "over"
 
-            elif used_percent >= 80:
+            elif used >= 80:
 
-                status = (
-                    "warning"
-                )
+                status = "warning"
 
             else:
 
-                status = (
-                    "healthy"
-                )
+                status = "healthy"
 
 
             results.append({
@@ -3793,18 +3231,19 @@ def budget_analysis():
 
                 "remaining":
                     round(
-                        remaining,
+                        budget_amount -
+                        actual,
                         2
                     ),
 
                 "used_percent":
                     round(
-                        used_percent,
+                        used,
                         1
                     ),
 
                 "status":
-                    status,
+                    status
 
             })
 
@@ -3824,7 +3263,6 @@ def budget_analysis():
             repr(exc)
         )
 
-
         return jsonify({
 
             "error":
@@ -3834,9 +3272,8 @@ def budget_analysis():
 
 
 # ============================================================
-# GOALS API
+# GOAL API
 # ============================================================
-
 
 @app.route(
     "/api/goals",
@@ -3853,7 +3290,6 @@ def goals_api():
 
         })
 
-
     except Exception as exc:
 
         return jsonify({
@@ -3865,7 +3301,6 @@ def goals_api():
 
 
 # ============================================================
-
 
 @app.route(
     "/api/goals",
@@ -3894,6 +3329,31 @@ def create_goal():
         ).strip()
 
 
+        target = clean_amount(
+
+            data.get(
+                "target_amount",
+                0
+            )
+
+        )
+
+
+        current = clean_amount(
+
+            data.get(
+                "current_amount",
+                0
+            )
+
+        )
+
+
+        deadline = data.get(
+            "deadline"
+        )
+
+
         if not name:
 
             return jsonify({
@@ -3904,27 +3364,7 @@ def create_goal():
             }), 400
 
 
-        target_amount = clean_amount(
-
-            data.get(
-                "target_amount",
-                0
-            )
-
-        )
-
-
-        current_amount = clean_amount(
-
-            data.get(
-                "current_amount",
-                0
-            )
-
-        )
-
-
-        if target_amount <= 0:
+        if target <= 0:
 
             return jsonify({
 
@@ -3934,38 +3374,30 @@ def create_goal():
             }), 400
 
 
-        if current_amount < 0:
+        if (
+            current < 0
+            or
+            current > target
+        ):
 
             return jsonify({
 
                 "error":
-                    "Saved amount cannot be negative."
+                    (
+                        "Saved amount must be "
+                        "between 0 and the target."
+                    )
 
             }), 400
-
-
-        if current_amount > target_amount:
-
-            return jsonify({
-
-                "error":
-                    "Saved amount cannot be greater than the target."
-
-            }), 400
-
-
-        deadline = data.get(
-            "deadline"
-        )
 
 
         goal_id = add_goal(
 
             name=name,
 
-            target_amount=target_amount,
+            target_amount=target,
 
-            current_amount=current_amount,
+            current_amount=current,
 
             deadline=deadline
 
@@ -3981,7 +3413,7 @@ def create_goal():
                 "Goal created successfully.",
 
             "id":
-                goal_id,
+                goal_id
 
         })
 
@@ -3993,7 +3425,6 @@ def create_goal():
             repr(exc)
         )
 
-
         return jsonify({
 
             "error":
@@ -4003,7 +3434,6 @@ def create_goal():
 
 
 # ============================================================
-
 
 @app.route(
     "/api/goals/<int:goal_id>",
@@ -4049,7 +3479,6 @@ def get_single_goal(
 
 
 # ============================================================
-
 
 @app.route(
     "/api/goals/<int:goal_id>",
@@ -4101,7 +3530,7 @@ def edit_goal(
         ).strip()
 
 
-        target_amount = clean_amount(
+        target = clean_amount(
 
             data.get(
 
@@ -4117,7 +3546,7 @@ def edit_goal(
         )
 
 
-        current_amount = clean_amount(
+        current = clean_amount(
 
             data.get(
 
@@ -4154,7 +3583,7 @@ def edit_goal(
             }), 400
 
 
-        if target_amount <= 0:
+        if target <= 0:
 
             return jsonify({
 
@@ -4165,15 +3594,18 @@ def edit_goal(
 
 
         if (
-            current_amount < 0
+            current < 0
             or
-            current_amount > target_amount
+            current > target
         ):
 
             return jsonify({
 
                 "error":
-                    "Saved amount must be between 0 and the target."
+                    (
+                        "Saved amount must be "
+                        "between 0 and the target."
+                    )
 
             }), 400
 
@@ -4184,9 +3616,9 @@ def edit_goal(
 
             name=name,
 
-            target_amount=target_amount,
+            target_amount=target,
 
-            current_amount=current_amount,
+            current_amount=current,
 
             deadline=deadline
 
@@ -4204,7 +3636,7 @@ def edit_goal(
             "goal":
                 get_goal(
                     goal_id
-                ),
+                )
 
         })
 
@@ -4216,7 +3648,6 @@ def edit_goal(
             repr(exc)
         )
 
-
         return jsonify({
 
             "error":
@@ -4226,7 +3657,6 @@ def edit_goal(
 
 
 # ============================================================
-
 
 @app.route(
     "/api/goals/<int:goal_id>",
@@ -4238,12 +3668,9 @@ def remove_goal(
 
     try:
 
-        goal = get_goal(
+        if not get_goal(
             goal_id
-        )
-
-
-        if not goal:
+        ):
 
             return jsonify({
 
@@ -4264,7 +3691,7 @@ def remove_goal(
                 True,
 
             "message":
-                "Goal deleted successfully.",
+                "Goal deleted successfully."
 
         })
 
@@ -4283,7 +3710,6 @@ def remove_goal(
 # GOAL IMPACT
 # ============================================================
 
-
 @app.route(
     "/api/goal-impact",
     methods=["GET"]
@@ -4297,37 +3723,37 @@ def goal_impact():
         transactions = get_transactions()
 
 
-        total_income = sum(
+        income = sum(
 
             abs(
                 transaction_amount(
-                    transaction
+                    tx
                 )
             )
 
-            for transaction
+            for tx
             in transactions
 
             if is_income(
-                transaction
+                tx
             )
 
         )
 
 
-        total_expenses = sum(
+        expenses = sum(
 
             abs(
                 transaction_amount(
-                    transaction
+                    tx
                 )
             )
 
-            for transaction
+            for tx
             in transactions
 
             if is_expense(
-                transaction
+                tx
             )
 
         )
@@ -4335,8 +3761,8 @@ def goal_impact():
 
         monthly_savings = max(
 
-            total_income -
-            total_expenses,
+            income -
+            expenses,
 
             0
 
@@ -4346,7 +3772,8 @@ def goal_impact():
         results = []
 
 
-        for goal in goals:
+        for goal
+        in goals:
 
             target = float(
 
@@ -4354,7 +3781,9 @@ def goal_impact():
                     "target_amount",
                     0
                 )
+
                 or
+
                 0
 
             )
@@ -4366,7 +3795,9 @@ def goal_impact():
                     "current_amount",
                     0
                 )
+
                 or
+
                 0
 
             )
@@ -4386,11 +3817,9 @@ def goal_impact():
 
                 min(
 
-                    (
-                        current /
-                        target
-                    )
-                    * 100,
+                    current /
+                    target *
+                    100,
 
                     100
 
@@ -4398,26 +3827,33 @@ def goal_impact():
 
                 if target > 0
 
-                else 0
+                else
+
+                0
 
             )
 
 
-            months_needed = None
+            months_needed = (
 
+                remaining /
+                monthly_savings
 
-            if (
-                remaining > 0
-                and
-                monthly_savings > 0
-            ):
+                if (
 
-                months_needed = (
+                    remaining > 0
 
-                    remaining /
-                    monthly_savings
+                    and
+
+                    monthly_savings > 0
 
                 )
+
+                else
+
+                None
+
+            )
 
 
             results.append({
@@ -4457,20 +3893,25 @@ def goal_impact():
                 "months_needed":
 
                     (
+
                         round(
                             months_needed,
                             1
                         )
 
-                        if months_needed is not None
+                        if months_needed
+                        is not None
 
-                        else None
+                        else
+
+                        None
+
                     ),
 
                 "deadline":
                     goal.get(
                         "deadline"
-                    ),
+                    )
 
             })
 
@@ -4482,13 +3923,13 @@ def goal_impact():
 
             "monthly_income":
                 round(
-                    total_income,
+                    income,
                     2
                 ),
 
             "monthly_expenses":
                 round(
-                    total_expenses,
+                    expenses,
                     2
                 ),
 
@@ -4496,7 +3937,7 @@ def goal_impact():
                 round(
                     monthly_savings,
                     2
-                ),
+                )
 
         })
 
@@ -4508,7 +3949,6 @@ def goal_impact():
             repr(exc)
         )
 
-
         return jsonify({
 
             "error":
@@ -4518,9 +3958,8 @@ def goal_impact():
 
 
 # ============================================================
-# FINPILOT AGENT HELPERS
+# FINPILOT AGENT
 # ============================================================
-
 
 def parse_add_transaction(
     message
@@ -4528,22 +3967,14 @@ def parse_add_transaction(
 
     pattern = re.compile(
 
-        r"""
-        (?:add|record|log)
-        \s+
-        (?:₹|rs\.?|inr)?
-        \s*
-        ([\d,]+(?:\.\d+)?)
-        \s+
-        (.+?)
-        \s+
-        (expense|income)
-        (?:\s+(today|yesterday|\d{4}-\d{2}-\d{2}))?
-        $
-        """,
+        r"(?:add|record|log)\s+"
+        r"(?:₹|rs\.?|inr)?\s*"
+        r"([\d,]+(?:\.\d+)?)\s+"
+        r"(.+?)\s+"
+        r"(expense|income)"
+        r"(?:\s+(today|yesterday|\d{4}-\d{2}-\d{2}))?$",
 
-        re.IGNORECASE |
-        re.VERBOSE
+        re.IGNORECASE
 
     )
 
@@ -4568,22 +3999,26 @@ def parse_add_transaction(
         return None
 
 
-    description = (
-        match.group(2)
-        .strip()
-    )
+    description = match.group(
+        2
+    ).strip()
 
 
-    transaction_type = (
-        match.group(3)
-        .lower()
-    )
+    tx_type = match.group(
+        3
+    ).lower()
 
 
-    date_text = (
-        match.group(4)
+    when = (
+
+        match.group(
+            4
+        )
+
         or
+
         "today"
+
     )
 
 
@@ -4591,7 +4026,7 @@ def parse_add_transaction(
 
         "date":
             parse_date_from_text(
-                date_text
+                when
             ),
 
         "description":
@@ -4606,15 +4041,9 @@ def parse_add_transaction(
             ),
 
         "transaction_type":
-            transaction_type,
-
-        "source":
-            "agent",
+            tx_type
 
     }
-
-
-# ============================================================
 
 
 def agent_query(
@@ -4632,14 +4061,14 @@ def agent_query(
 
 
     # --------------------------------------------------------
-    # TOTAL SPENDING
+    # SPENDING
     # --------------------------------------------------------
 
     if any(
 
-        phrase in query
+        text in query
 
-        for phrase in [
+        for text in [
 
             "how much did i spend",
 
@@ -4647,25 +4076,25 @@ def agent_query(
 
             "total expenses",
 
-            "how much have i spent",
+            "how much have i spent"
 
         ]
 
     ):
 
-        expenses = sum(
+        total = sum(
 
             abs(
                 transaction_amount(
-                    transaction
+                    tx
                 )
             )
 
-            for transaction
+            for tx
             in transactions
 
             if is_expense(
-                transaction
+                tx
             )
 
         )
@@ -4677,15 +4106,15 @@ def agent_query(
 
                 (
                     f"You have spent "
-                    f"₹{expenses:,.2f} "
-                    f"in total."
+                    f"₹{total:,.2f} "
+                    "in total."
                 ),
 
             "action":
                 "NONE",
 
             "requires_confirmation":
-                False,
+                False
 
         }
 
@@ -4694,27 +4123,35 @@ def agent_query(
     # INCOME
     # --------------------------------------------------------
 
-    if (
-        "income" in query
-        or
-        "salary" in query
-        or
-        "earned" in query
+    if any(
+
+        text in query
+
+        for text in [
+
+            "income",
+
+            "salary",
+
+            "earned"
+
+        ]
+
     ):
 
-        income = sum(
+        total = sum(
 
             abs(
                 transaction_amount(
-                    transaction
+                    tx
                 )
             )
 
-            for transaction
+            for tx
             in transactions
 
             if is_income(
-                transaction
+                tx
             )
 
         )
@@ -4726,14 +4163,14 @@ def agent_query(
 
                 (
                     f"Your recorded income "
-                    f"is ₹{income:,.2f}."
+                    f"is ₹{total:,.2f}."
                 ),
 
             "action":
                 "NONE",
 
             "requires_confirmation":
-                False,
+                False
 
         }
 
@@ -4742,25 +4179,21 @@ def agent_query(
     # SAVINGS
     # --------------------------------------------------------
 
-    if (
-        "savings" in query
-        or
-        "saved" in query
-    ):
+    if "saving" in query:
 
         income = sum(
 
             abs(
                 transaction_amount(
-                    transaction
+                    tx
                 )
             )
 
-            for transaction
+            for tx
             in transactions
 
             if is_income(
-                transaction
+                tx
             )
 
         )
@@ -4770,23 +4203,17 @@ def agent_query(
 
             abs(
                 transaction_amount(
-                    transaction
+                    tx
                 )
             )
 
-            for transaction
+            for tx
             in transactions
 
             if is_expense(
-                transaction
+                tx
             )
 
-        )
-
-
-        savings = (
-            income -
-            expenses
         )
 
 
@@ -4796,14 +4223,15 @@ def agent_query(
 
                 (
                     f"Your current recorded "
-                    f"savings are ₹{savings:,.2f}."
+                    f"savings are "
+                    f"₹{income - expenses:,.2f}."
                 ),
 
             "action":
                 "NONE",
 
             "requires_confirmation":
-                False,
+                False
 
         }
 
@@ -4812,65 +4240,63 @@ def agent_query(
     # HIGHEST CATEGORY
     # --------------------------------------------------------
 
-    if (
+    if any(
 
-        "highest category" in query
+        text in query
 
-        or
+        for text in [
 
-        "biggest expense category" in query
+            "highest category",
 
-        or
+            "biggest expense category",
 
-        "most spending" in query
+            "most spending"
+
+        ]
 
     ):
 
         categories = {}
 
 
-        for transaction in transactions:
+        for tx
+        in transactions:
 
-            if not is_expense(
-                transaction
+            if is_expense(
+                tx
             ):
 
-                continue
+                category = str(
 
-
-            category = str(
-
-                transaction.get(
-                    "category",
-                    "Other"
-                )
-
-            )
-
-
-            categories[category] = (
-
-                categories.get(
-                    category,
-                    0
-                )
-
-                +
-
-                abs(
-
-                    transaction_amount(
-                        transaction
+                    tx.get(
+                        "category",
+                        "Other"
                     )
 
                 )
 
-            )
+
+                categories[category] = (
+
+                    categories.get(
+                        category,
+                        0
+                    )
+
+                    +
+
+                    abs(
+                        transaction_amount(
+                            tx
+                        )
+                    )
+
+                )
 
 
         if categories:
 
-            highest = max(
+            category = max(
 
                 categories,
 
@@ -4885,15 +4311,15 @@ def agent_query(
 
                     (
                         f"Your highest spending "
-                        f"category is {highest} "
-                        f"at ₹{categories[highest]:,.2f}."
+                        f"category is {category} "
+                        f"at ₹{categories[category]:,.2f}."
                     ),
 
                 "action":
                     "NONE",
 
                 "requires_confirmation":
-                    False,
+                    False
 
             }
 
@@ -4902,90 +4328,58 @@ def agent_query(
     # RECURRING
     # --------------------------------------------------------
 
-    if (
+    if any(
 
-        "recurring" in query
+        text in query
 
-        or
+        for text in [
 
-        "subscription" in query
+            "recurring",
 
-        or
+            "subscription",
 
-        "subscriptions" in query
+            "subscriptions"
+
+        ]
 
     ):
 
-        analysis = (
-            analysis_for_transactions(
-                transactions
-            )
+        analysis = analyze_transactions(
+            transactions
         )
 
 
         recurring = (
+
             analysis.get(
                 "recurring",
                 []
             )
+
             or
+
             []
+
         )
 
 
         if recurring:
-
-            names = []
-
-
-            for item in recurring:
-
-                if isinstance(
-                    item,
-                    dict
-                ):
-
-                    names.append(
-
-                        str(
-
-                            item.get(
-
-                                "description",
-
-                                item.get(
-                                    "name",
-                                    "Payment"
-                                )
-
-                            )
-
-                        )
-
-                    )
-
-                else:
-
-                    names.append(
-                        str(item)
-                    )
-
 
             return {
 
                 "message":
 
                     (
-                        "Recurring payments detected: "
-                        +
-                        ", ".join(names)
+                        "I detected "
+                        f"{len(recurring)} "
+                        "recurring payment pattern(s)."
                     ),
 
                 "action":
                     "NONE",
 
                 "requires_confirmation":
-                    False,
+                    False
 
             }
 
@@ -4993,18 +4387,16 @@ def agent_query(
         return {
 
             "message":
-
                 (
-                    "I couldn't detect recurring "
-                    "payments from the current "
-                    "transaction data."
+                    "I couldn't confidently "
+                    "detect recurring payments."
                 ),
 
             "action":
                 "NONE",
 
             "requires_confirmation":
-                False,
+                False
 
         }
 
@@ -5013,24 +4405,24 @@ def agent_query(
     # UNUSUAL
     # --------------------------------------------------------
 
-    if (
+    if any(
 
-        "unusual" in query
+        text in query
 
-        or
+        for text in [
 
-        "abnormal" in query
+            "unusual",
 
-        or
+            "abnormal",
 
-        "suspicious spending" in query
+            "suspicious spending"
+
+        ]
 
     ):
 
-        analysis = (
-            analysis_for_transactions(
-                transactions
-            )
+        analysis = analyze_transactions(
+            transactions
         )
 
 
@@ -5040,84 +4432,54 @@ def agent_query(
                 "unusual",
                 []
             )
+
             or
+
             []
+
         )
 
 
         if unusual:
 
-            first = unusual[0]
+            return {
 
+                "message":
 
-            if isinstance(
-                first,
-                dict
-            ):
+                    (
+                        "I detected "
+                        f"{len(unusual)} "
+                        "unusual spending pattern(s)."
+                    ),
 
-                description = (
+                "action":
+                    "NONE",
 
-                    first.get(
-                        "description",
-                        "Transaction"
-                    )
+                "requires_confirmation":
+                    False
 
-                )
-
-
-                amount = (
-                    first.get(
-                        "amount",
-                        0
-                    )
-                    or
-                    0
-                )
-
-
-                return {
-
-                    "message":
-
-                        (
-                            "An unusual transaction "
-                            "was detected: "
-                            f"{description} for "
-                            f"₹{abs(float(amount)):,.2f}."
-                        ),
-
-                    "action":
-                        "NONE",
-
-                    "requires_confirmation":
-                        False,
-
-                }
+            }
 
 
         return {
 
             "message":
-
-                (
-                    "No unusual spending was "
-                    "detected from the current data."
-                ),
+                "No unusual spending was detected.",
 
             "action":
                 "NONE",
 
             "requires_confirmation":
-                False,
+                False
 
         }
 
 
     # --------------------------------------------------------
-    # SEARCH COMMON MERCHANTS
+    # MERCHANT SEARCH
     # --------------------------------------------------------
 
-    search_words = [
+    merchant_words = [
 
         "amazon",
 
@@ -5133,12 +4495,13 @@ def agent_query(
 
         "rent",
 
-        "electricity",
+        "electricity"
 
     ]
 
 
-    for word in search_words:
+    for word
+    in merchant_words:
 
         if word not in query:
 
@@ -5147,16 +4510,16 @@ def agent_query(
 
         matches = [
 
-            transaction
+            tx
 
-            for transaction
+            for tx
             in transactions
 
             if word
             in
             str(
 
-                transaction.get(
+                tx.get(
                     "description",
                     ""
                 )
@@ -5171,14 +4534,12 @@ def agent_query(
             total = sum(
 
                 abs(
-
                     transaction_amount(
-                        transaction
+                        tx
                     )
-
                 )
 
-                for transaction
+                for tx
                 in matches
 
             )
@@ -5189,9 +4550,11 @@ def agent_query(
                 "message":
 
                     (
-                        f"I found {len(matches)} "
+                        f"I found "
+                        f"{len(matches)} "
                         f"{word} transaction(s) "
-                        f"totaling ₹{total:,.2f}."
+                        f"totaling "
+                        f"₹{total:,.2f}."
                     ),
 
                 "action":
@@ -5201,7 +4564,7 @@ def agent_query(
                     False,
 
                 "transactions":
-                    matches,
+                    matches
 
             }
 
@@ -5226,14 +4589,9 @@ def agent_query(
             "NONE",
 
         "requires_confirmation":
-            False,
+            False
 
     }
-
-
-# ============================================================
-# AGENT REPORT BUILDER
-# ============================================================
 
 
 def build_agent_report():
@@ -5245,31 +4603,29 @@ def build_agent_report():
     goals = get_goals()
 
 
-    analysis = (
-        analysis_for_transactions(
-            transactions
-        )
+    analysis = analyze_transactions(
+        transactions
     )
 
 
-    income = (
-        analysis["income"]
-    )
+    income = analysis[
+        "income"
+    ]
 
 
-    expenses = (
-        analysis["expenses"]
-    )
+    expenses = analysis[
+        "expenses"
+    ]
 
 
-    savings = (
-        analysis["savings"]
-    )
+    savings = analysis[
+        "savings"
+    ]
 
 
-    savings_rate = (
-        analysis["savings_rate"]
-    )
+    savings_rate = analysis[
+        "savings_rate"
+    ]
 
 
     categories = (
@@ -5278,7 +4634,9 @@ def build_agent_report():
             "category_spending",
             {}
         )
+
         or
+
         {}
 
     )
@@ -5290,7 +4648,9 @@ def build_agent_report():
             "recurring",
             []
         )
+
         or
+
         []
 
     )
@@ -5302,7 +4662,9 @@ def build_agent_report():
             "unusual",
             []
         )
+
         or
+
         []
 
     )
@@ -5317,40 +4679,26 @@ def build_agent_report():
     recommendations = []
 
 
-    # --------------------------------------------------------
-    # SAVINGS
-    # --------------------------------------------------------
-
     if income > 0:
 
         if savings_rate >= 30:
 
             key_insights.append(
-
                 "Your recorded savings rate is above 30%."
-
             )
 
         elif savings_rate >= 15:
 
             key_insights.append(
-
                 "You maintained a positive savings rate."
-
             )
 
         else:
 
             spending_risks.append(
-
                 "Your recorded savings rate is relatively low."
-
             )
 
-
-    # --------------------------------------------------------
-    # EXPENSES > INCOME
-    # --------------------------------------------------------
 
     if (
         expenses > income
@@ -5359,19 +4707,13 @@ def build_agent_report():
     ):
 
         spending_risks.append(
-
             "Recorded expenses are higher than recorded income."
-
         )
 
 
-    # --------------------------------------------------------
-    # HIGHEST CATEGORY
-    # --------------------------------------------------------
-
     if categories:
 
-        highest_category = max(
+        highest = max(
 
             categories,
 
@@ -5380,21 +4722,12 @@ def build_agent_report():
         )
 
 
-        highest_amount = (
-
-            categories[
-                highest_category
-            ]
-
-        )
-
-
         key_insights.append(
 
             (
-                f"{highest_category} is the highest "
-                f"spending category at "
-                f"₹{highest_amount:,.0f}."
+                f"{highest} is the highest "
+                "spending category at "
+                f"₹{categories[highest]:,.0f}."
             )
 
         )
@@ -5403,16 +4736,12 @@ def build_agent_report():
         savings_opportunities.append(
 
             (
-                f"Review {highest_category} "
-                "spending and identify avoidable transactions."
+                f"Review {highest} spending "
+                "and identify avoidable transactions."
             )
 
         )
 
-
-    # --------------------------------------------------------
-    # RECURRING
-    # --------------------------------------------------------
 
     if recurring:
 
@@ -5426,10 +4755,6 @@ def build_agent_report():
         )
 
 
-    # --------------------------------------------------------
-    # UNUSUAL
-    # --------------------------------------------------------
-
     if unusual:
 
         spending_risks.append(
@@ -5442,11 +4767,8 @@ def build_agent_report():
         )
 
 
-    # --------------------------------------------------------
-    # BUDGETS
-    # --------------------------------------------------------
-
-    for budget in budgets:
+    for budget
+    in budgets:
 
         category = str(
 
@@ -5464,7 +4786,9 @@ def build_agent_report():
                 "amount",
                 0
             )
+
             or
+
             0
 
         )
@@ -5473,27 +4797,25 @@ def build_agent_report():
         actual = sum(
 
             abs(
-
                 transaction_amount(
-                    transaction
+                    tx
                 )
-
             )
 
-            for transaction
+            for tx
             in transactions
 
             if (
 
                 is_expense(
-                    transaction
+                    tx
                 )
 
                 and
 
                 str(
 
-                    transaction.get(
+                    tx.get(
                         "category",
                         "Other"
                     )
@@ -5510,53 +4832,38 @@ def build_agent_report():
 
 
         if (
-
-            budget_amount > 0
-
+            budget_amount
             and
-
             actual > budget_amount
-
         ):
 
             spending_risks.append(
 
                 (
-                    f"{category} spending is "
-                    "above its monthly budget."
+                    f"{category} spending "
+                    "is above its monthly budget."
                 )
 
             )
 
-
         elif (
-
-            budget_amount > 0
-
+            budget_amount
             and
-
-            actual >= (
-                budget_amount *
-                0.8
-            )
-
+            actual >= budget_amount * 0.8
         ):
 
             recommendations.append(
 
                 (
-                    f"{category} spending is "
-                    "near its monthly budget limit."
+                    f"{category} spending "
+                    "is near its monthly budget limit."
                 )
 
             )
 
 
-    # --------------------------------------------------------
-    # GOALS
-    # --------------------------------------------------------
-
-    for goal in goals:
+    for goal
+    in goals:
 
         target = float(
 
@@ -5564,7 +4871,9 @@ def build_agent_report():
                 "target_amount",
                 0
             )
+
             or
+
             0
 
         )
@@ -5576,23 +4885,15 @@ def build_agent_report():
                 "current_amount",
                 0
             )
+
             or
+
             0
 
         )
 
 
-        if (
-            target > 0
-            and
-            current < target
-        ):
-
-            remaining = (
-                target -
-                current
-            )
-
+        if target > current:
 
             recommendations.append(
 
@@ -5600,21 +4901,20 @@ def build_agent_report():
                     f"Your goal "
                     f"'{goal.get('name', 'Financial Goal')}' "
                     f"still needs "
-                    f"₹{remaining:,.0f}."
+                    f"₹{target - current:,.0f}."
                 )
 
             )
 
 
-    # --------------------------------------------------------
-    # FALLBACKS
-    # --------------------------------------------------------
-
     if not key_insights:
 
         key_insights.append(
 
-            "FinPilot did not find a major positive pattern yet."
+            (
+                "More recorded transactions will "
+                "improve the quality of analysis."
+            )
 
         )
 
@@ -5631,111 +4931,46 @@ def build_agent_report():
         )
 
 
-    # --------------------------------------------------------
-    # REPORT
-    # --------------------------------------------------------
-
     return {
 
         "headline":
-
-            (
-                "Your FinPilot financial "
-                "analysis is ready."
-            ),
-
+            "Your FinPilot financial analysis is ready.",
 
         "summary":
 
             (
-                f"You recorded ₹{income:,.0f} income, "
+                f"You recorded "
+                f"₹{income:,.0f} income, "
                 f"₹{expenses:,.0f} expenses and "
                 f"₹{savings:,.0f} savings."
             ),
 
-
-        "spending_pattern":
-
-            (
-
-                (
-                    "Highest spending category: "
-                    f"{max(categories, key=categories.get)}."
-                )
-
-                if categories
-
-                else
-
-                "Highest spending category is not available."
-
-            ),
-
-
-        "recurring_payments":
-
-            (
-
-                (
-                    f"{len(recurring)} recurring "
-                    "payment pattern(s) detected."
-                )
-
-                if recurring
-
-                else
-
-                "No recurring payments were confidently detected."
-
-            ),
-
-
-        "attention_needed":
-            spending_risks,
-
-
-        "budget_check":
-
-            (
-
-                (
-                    f"{len(budgets)} budget(s) "
-                    "are being tracked."
-                )
-
-                if budgets
-
-                else
-
-                "No budgets are currently configured."
-
-            ),
-
-
-        "agent_insight":
-
-            (
-                "This analysis is based on the user's "
-                "recorded transactions, budgets and goals. "
-                "It is decision support, not investment advice."
-            ),
-
-
         "key_insights":
             key_insights,
-
 
         "spending_risks":
             spending_risks,
 
-
         "savings_opportunities":
             savings_opportunities,
-
 
         "recommendations":
             recommendations,
 
+        "transaction_count":
+            len(transactions),
+
+        "income":
+            income,
+
+        "expenses":
+            expenses,
+
+        "savings":
+            savings,
+
+        "savings_rate":
+            savings_rate,
 
         "tools_used": [
 
@@ -5747,88 +4982,24 @@ def build_agent_report():
 
             "Budget analysis",
 
-            "Goal analysis",
+            "Goal analysis"
 
         ],
 
+        "agent_insight":
 
-        "income":
-            income,
-
-
-        "expenses":
-            expenses,
-
-
-        "savings":
-            savings,
-
-
-        "savings_rate":
-            savings_rate,
-
-
-        "transaction_count":
-            len(transactions),
+            (
+                "This analysis uses recorded transactions, "
+                "budgets and goals for decision support, "
+                "not investment advice."
+            )
 
     }
 
 
 # ============================================================
-# NEW DASHBOARD AGENT ENDPOINT
+# AGENT CHAT
 # ============================================================
-
-
-@app.route(
-    "/agent/analyze",
-    methods=["POST"]
-)
-def agent_analyze():
-
-    try:
-
-        report = build_agent_report()
-
-
-        return jsonify({
-
-            "success":
-                True,
-
-            "report":
-                report,
-
-            "tools_used":
-                report[
-                    "tools_used"
-                ],
-
-        })
-
-
-    except Exception as exc:
-
-        print(
-            "AGENT ANALYZE ERROR:",
-            repr(exc)
-        )
-
-
-        return jsonify({
-
-            "success":
-                False,
-
-            "error":
-                str(exc),
-
-        }), 500
-
-
-# ============================================================
-# NEW DASHBOARD CHAT ENDPOINT
-# ============================================================
-
 
 @app.route(
     "/agent/chat",
@@ -5865,7 +5036,10 @@ def agent_chat():
                     False,
 
                 "answer":
-                    "Please enter a financial question or command.",
+                    (
+                        "Please enter a financial "
+                        "question or command."
+                    )
 
             }), 400
 
@@ -5881,13 +5055,12 @@ def agent_chat():
                 True,
 
             "answer":
-
                 result.get(
                     "message",
                     ""
                 ),
 
-            **result,
+            **result
 
         })
 
@@ -5906,7 +5079,57 @@ def agent_chat():
                 False,
 
             "error":
-                str(exc),
+                str(exc)
+
+        }), 500
+
+
+# ============================================================
+# AGENT ANALYZE
+# ============================================================
+
+@app.route(
+    "/agent/analyze",
+    methods=["POST"]
+)
+def agent_analyze():
+
+    try:
+
+        report = build_agent_report()
+
+
+        return jsonify({
+
+            "success":
+                True,
+
+            "report":
+                report,
+
+            "tools_used":
+                report[
+                    "tools_used"
+                ]
+
+        })
+
+
+    except Exception as exc:
+
+        print(
+            "AGENT ANALYZE ERROR:",
+            repr(exc)
+        )
+
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "error":
+                str(exc)
 
         }), 500
 
@@ -5915,12 +5138,11 @@ def agent_chat():
 # LEGACY AGENT API
 # ============================================================
 
-
 @app.route(
     "/api/agent",
     methods=["POST"]
 )
-def agent():
+def api_agent():
 
     try:
 
@@ -5957,25 +5179,19 @@ def agent():
                     "NONE",
 
                 "requires_confirmation":
-                    False,
+                    False
 
-            })
+            }), 400
 
 
-        # ====================================================
-        # ADD TRANSACTION
-        # ====================================================
-
-        add_data = (
-            parse_add_transaction(
-                message
-            )
+        add_data = parse_add_transaction(
+            message
         )
 
 
         if add_data:
 
-            transaction_id = add_transaction(
+            tx_id = add_transaction(
 
                 date=add_data[
                     "date"
@@ -5997,7 +5213,7 @@ def agent():
                     "transaction_type"
                 ],
 
-                source="agent",
+                source="agent"
 
             )
 
@@ -6025,413 +5241,12 @@ def agent():
                     **add_data,
 
                     "id":
-                        transaction_id,
+                        tx_id
 
-                },
-
-            })
-
-
-        # ====================================================
-        # BUDGET
-        # ====================================================
-
-        budget_pattern = re.search(
-
-            r"""
-            (?:
-                set\s+(.+?)\s+budget
-                |
-                budget\s+(.+?)
-            )
-            \s+
-            (?:to\s+)?
-            (?:₹|rs\.?|inr)?
-            \s*
-            ([\d,]+(?:\.\d+)?)
-            $
-            """,
-
-            message,
-
-            re.IGNORECASE |
-            re.VERBOSE
-
-        )
-
-
-        if budget_pattern:
-
-            category = (
-
-                budget_pattern.group(1)
-
-                or
-
-                budget_pattern.group(2)
-
-            ).strip()
-
-
-            amount = clean_amount(
-
-                budget_pattern.group(3)
-
-            )
-
-
-            if amount <= 0:
-
-                return jsonify({
-
-                    "message":
-                        "Please provide a valid budget amount.",
-
-                    "action":
-                        "NONE",
-
-                    "requires_confirmation":
-                        False,
-
-                }), 400
-
-
-            month = date.today().strftime(
-                "%Y-%m"
-            )
-
-
-            budget_id = set_budget(
-
-                category=category,
-
-                amount=amount,
-
-                month=month
-
-            )
-
-
-            return jsonify({
-
-                "message":
-
-                    (
-                        f"Budget set: "
-                        f"₹{amount:,.2f} "
-                        f"for {category}."
-                    ),
-
-                "action":
-                    "SET_BUDGET",
-
-                "requires_confirmation":
-                    False,
-
-                "data": {
-
-                    "id":
-                        budget_id,
-
-                    "category":
-                        category,
-
-                    "amount":
-                        amount,
-
-                    "month":
-                        month,
-
-                },
+                }
 
             })
 
-
-        # ====================================================
-        # GOAL
-        # ====================================================
-
-        goal_pattern = re.search(
-
-            r"""
-            (?:
-                create
-                |
-                set
-                |
-                add
-            )
-            \s+
-            (.+?)
-            \s+
-            goal
-            \s+
-            (?:of\s+|to\s+)?
-            (?:₹|rs\.?|inr)?
-            \s*
-            ([\d,]+(?:\.\d+)?)
-            $
-            """,
-
-            message,
-
-            re.IGNORECASE |
-            re.VERBOSE
-
-        )
-
-
-        if goal_pattern:
-
-            name = (
-
-                goal_pattern.group(
-                    1
-                )
-
-                .strip()
-
-            )
-
-
-            amount = clean_amount(
-
-                goal_pattern.group(
-                    2
-                )
-
-            )
-
-
-            if amount <= 0:
-
-                return jsonify({
-
-                    "message":
-                        "Please provide a valid goal amount.",
-
-                    "action":
-                        "NONE",
-
-                    "requires_confirmation":
-                        False,
-
-                }), 400
-
-
-            goal_id = add_goal(
-
-                name=name,
-
-                target_amount=amount,
-
-                current_amount=0,
-
-                deadline=None
-
-            )
-
-
-            return jsonify({
-
-                "message":
-
-                    (
-                        f"Goal created: "
-                        f"{name} "
-                        f"with a target of "
-                        f"₹{amount:,.2f}."
-                    ),
-
-                "action":
-                    "SET_GOAL",
-
-                "requires_confirmation":
-                    False,
-
-                "data": {
-
-                    "id":
-                        goal_id,
-
-                    "name":
-                        name,
-
-                    "target_amount":
-                        amount,
-
-                },
-
-            })
-
-
-        # ====================================================
-        # DELETE TRANSACTION
-        # ====================================================
-
-        delete_match = re.search(
-
-            r"""
-            (?:delete|remove)
-            \s+
-            (.+)
-            """,
-
-            message.strip(),
-
-            re.IGNORECASE |
-            re.VERBOSE
-
-        )
-
-
-        if delete_match:
-
-            search_text = (
-
-                delete_match.group(
-                    1
-                )
-
-                .lower()
-                .strip()
-
-            )
-
-
-            transactions = get_transactions()
-
-
-            matches = []
-
-
-            for transaction in transactions:
-
-                description = str(
-
-                    transaction.get(
-                        "description",
-                        ""
-                    )
-
-                ).lower()
-
-
-                words_match = any(
-
-                    word in description
-
-                    for word
-                    in
-                    search_text.split()
-
-                )
-
-
-                if (
-
-                    search_text in description
-
-                    or
-
-                    words_match
-
-                ):
-
-                    matches.append(
-                        transaction
-                    )
-
-
-            if not matches:
-
-                return jsonify({
-
-                    "message":
-
-                        (
-                            "I couldn't find a "
-                            "matching transaction "
-                            "to delete."
-                        ),
-
-                    "action":
-                        "NONE",
-
-                    "requires_confirmation":
-                        False,
-
-                })
-
-
-            transaction = matches[0]
-
-
-            confirmed = bool(
-
-                data.get(
-                    "confirm",
-                    False
-                )
-
-            )
-
-
-            if not confirmed:
-
-                return jsonify({
-
-                    "message":
-
-                        (
-                            "Please confirm deletion "
-                            "of "
-                            f"{transaction.get('description')} "
-                            "for "
-                            f"₹{abs(float(transaction.get('amount', 0))):,.2f}."
-                        ),
-
-                    "action":
-                        "DELETE_TRANSACTION",
-
-                    "requires_confirmation":
-                        True,
-
-                    "data":
-                        transaction,
-
-                })
-
-
-            delete_transaction(
-
-                transaction.get(
-                    "id"
-                )
-
-            )
-
-
-            return jsonify({
-
-                "message":
-                    "Transaction deleted successfully.",
-
-                "action":
-                    "DELETE_TRANSACTION",
-
-                "requires_confirmation":
-                    False,
-
-                "data":
-                    transaction,
-
-            })
-
-
-        # ====================================================
-        # NORMAL QUESTION
-        # ====================================================
 
         return jsonify(
             agent_query(
@@ -6463,7 +5278,7 @@ def agent():
                 "ERROR",
 
             "requires_confirmation":
-                False,
+                False
 
         }), 500
 
@@ -6472,7 +5287,6 @@ def agent():
 # MONTHLY REPORT
 # ============================================================
 
-
 def get_monthly_report_data(
     requested_month
 ):
@@ -6480,20 +5294,16 @@ def get_monthly_report_data(
     transactions = get_transactions()
 
 
-    # --------------------------------------------------------
-    # MONTH FILTER
-    # --------------------------------------------------------
-
     month_transactions = [
 
-        transaction
+        tx
 
-        for transaction
+        for tx
         in transactions
 
         if str(
 
-            transaction.get(
+            tx.get(
                 "date",
                 ""
             )
@@ -6505,66 +5315,71 @@ def get_monthly_report_data(
     ]
 
 
-    # --------------------------------------------------------
-    # INCOME
-    # --------------------------------------------------------
-
     income = sum(
 
         abs(
-
             transaction_amount(
-                transaction
+                tx
             )
-
         )
 
-        for transaction
+        for tx
         in month_transactions
 
         if is_income(
-            transaction
+            tx
         )
 
     )
 
-
-    # --------------------------------------------------------
-    # EXPENSES
-    # --------------------------------------------------------
 
     expenses = sum(
 
         abs(
-
             transaction_amount(
-                transaction
+                tx
             )
-
         )
 
-        for transaction
+        for tx
         in month_transactions
 
         if is_expense(
-            transaction
+            tx
         )
 
     )
 
 
-    # --------------------------------------------------------
-    # CATEGORY SPENDING
-    # --------------------------------------------------------
+    savings = (
+
+        income -
+        expenses
+
+    )
+
+
+    savings_rate = (
+
+        savings /
+        income *
+        100
+
+        if income > 0
+
+        else 0
+
+    )
+
 
     categories = {}
 
 
-    for transaction
+    for tx
     in month_transactions:
 
         if not is_expense(
-            transaction
+            tx
         ):
 
             continue
@@ -6572,7 +5387,7 @@ def get_monthly_report_data(
 
         category = str(
 
-            transaction.get(
+            tx.get(
                 "category",
                 "Other"
             )
@@ -6590,138 +5405,66 @@ def get_monthly_report_data(
             +
 
             abs(
-
                 transaction_amount(
-                    transaction
+                    tx
                 )
-
             )
 
         )
 
 
-    # --------------------------------------------------------
-    # SAVINGS
-    # --------------------------------------------------------
+    highest_category = (
 
-    savings = (
-
-        income -
-        expenses
-
-    )
-
-
-    savings_rate = (
-
-        (
-            savings /
-            income
-        )
-        * 100
-
-        if income > 0
-
-        else 0
-
-    )
-
-
-    # --------------------------------------------------------
-    # HIGHEST CATEGORY
-    # --------------------------------------------------------
-
-    highest_category = None
-
-    highest_category_amount = 0
-
-
-    if categories:
-
-        highest_category = max(
-
+        max(
             categories,
-
             key=categories.get
-
         )
 
+        if categories
 
-        highest_category_amount = (
+        else
 
-            categories[
-                highest_category
-            ]
+        None
 
-        )
-
-
-    # --------------------------------------------------------
-    # RECURRING
-    # --------------------------------------------------------
-
-    recurring_analysis = (
-        analysis_for_transactions(
-            month_transactions
-        )
     )
 
 
-    recurring_total = 0.0
+    highest_amount = (
 
-
-    for item
-    in
-    (
-        recurring_analysis.get(
-            "recurring",
-            []
+        categories.get(
+            highest_category,
+            0
         )
-        or
-        []
-    ):
 
-        if isinstance(
-            item,
-            dict
-        ):
+        if highest_category
 
-            recurring_total += abs(
+        else
 
-                clean_amount(
+        0
 
-                    item.get(
-                        "amount",
-                        0
-                    )
+    )
 
+
+    budgets = []
+
+
+    for budget
+    in get_budgets():
+
+        if (
+
+            str(
+                budget.get(
+                    "month",
+                    requested_month
                 )
-
             )
 
+            !=
 
-    # --------------------------------------------------------
-    # BUDGETS
-    # --------------------------------------------------------
+            requested_month
 
-    budgets = get_budgets()
-
-    budget_results = []
-
-
-    for budget in budgets:
-
-        budget_month = str(
-
-            budget.get(
-                "month",
-                requested_month
-            )
-
-        )
-
-
-        if budget_month != requested_month:
+        ):
 
             continue
 
@@ -6736,13 +5479,15 @@ def get_monthly_report_data(
         )
 
 
-        budget_amount = float(
+        amount = float(
 
             budget.get(
                 "amount",
                 0
             )
+
             or
+
             0
 
         )
@@ -6754,67 +5499,57 @@ def get_monthly_report_data(
                 category,
                 0
             )
+
             or
+
             0
 
         )
 
 
-        used_percent = (
+        used = (
 
-            (
-                actual /
-                budget_amount
-            )
-            * 100
+            actual /
+            amount *
+            100
 
-            if budget_amount > 0
+            if amount > 0
 
-            else 0
+            else
+
+            0
 
         )
 
 
-        budget_results.append({
+        budgets.append({
 
             "category":
                 category,
 
             "budget":
-                round(
-                    budget_amount,
-                    2
-                ),
+                amount,
 
             "amount":
-                round(
-                    budget_amount,
-                    2
-                ),
+                amount,
 
             "actual":
-                round(
-                    actual,
-                    2
-                ),
+                actual,
 
             "used_percent":
                 round(
-                    used_percent,
+                    used,
                     1
-                ),
+                )
 
         })
 
 
-    # --------------------------------------------------------
-    # GOALS
-    # --------------------------------------------------------
-
     goals = []
 
 
-    for goal in get_goals():
+    for goal
+    in get_goals():
 
         target = float(
 
@@ -6822,7 +5557,9 @@ def get_monthly_report_data(
                 "target_amount",
                 0
             )
+
             or
+
             0
 
         )
@@ -6834,7 +5571,9 @@ def get_monthly_report_data(
                 "current_amount",
                 0
             )
+
             or
+
             0
 
         )
@@ -6844,11 +5583,9 @@ def get_monthly_report_data(
 
             min(
 
-                (
-                    current /
-                    target
-                )
-                * 100,
+                current /
+                target *
+                100,
 
                 100
 
@@ -6856,7 +5593,9 @@ def get_monthly_report_data(
 
             if target > 0
 
-            else 0
+            else
+
+            0
 
         )
 
@@ -6884,14 +5623,10 @@ def get_monthly_report_data(
             "deadline":
                 goal.get(
                     "deadline"
-                ),
+                )
 
         })
 
-
-    # --------------------------------------------------------
-    # INSIGHTS
-    # --------------------------------------------------------
 
     insights = []
 
@@ -6901,27 +5636,19 @@ def get_monthly_report_data(
         if savings_rate >= 30:
 
             insights.append(
-
                 "Your recorded savings rate is above 30% this month."
-
             )
-
 
         elif savings_rate >= 15:
 
             insights.append(
-
                 "You maintained a positive savings rate this month."
-
             )
-
 
         else:
 
             insights.append(
-
-                "Your savings rate is relatively low this month."
-
+                "Your recorded savings rate is relatively low this month."
             )
 
 
@@ -6932,23 +5659,65 @@ def get_monthly_report_data(
             (
                 f"{highest_category} was your highest "
                 f"spending category at "
-                f"₹{highest_category_amount:,.0f}."
+                f"₹{highest_amount:,.0f}."
             )
 
         )
 
 
     if (
-        expenses > income
-        and
         income > 0
+        and
+        expenses > income
     ):
 
         insights.append(
 
-            "Your recorded expenses were higher than your income this month."
+            (
+                "Your recorded expenses were higher "
+                "than your income this month."
+            )
 
         )
+
+
+    recurring = (
+
+        analyze_transactions(
+            month_transactions
+        )
+
+        .get(
+            "recurring",
+            []
+        )
+
+    )
+
+
+    recurring_total = 0
+
+
+    for item
+    in recurring:
+
+        if isinstance(
+            item,
+            dict
+        ):
+
+            recurring_total += abs(
+
+                clean_amount(
+
+                    item.get(
+                        "amount",
+                        0
+                    )
+
+                )
+
+            )
 
 
     return {
@@ -6983,8 +5752,6 @@ def get_monthly_report_data(
                 1
             ),
 
-        # Both keys are returned so old and new
-        # frontends remain compatible.
         "categories":
             categories,
 
@@ -6996,7 +5763,7 @@ def get_monthly_report_data(
 
         "highest_category_amount":
             round(
-                highest_category_amount,
+                highest_amount,
                 2
             ),
 
@@ -7007,18 +5774,15 @@ def get_monthly_report_data(
             ),
 
         "budgets":
-            budget_results,
+            budgets,
 
         "goals":
             goals,
 
         "insights":
-            insights,
+            insights
 
     }
-
-
-# ============================================================
 
 
 @app.route(
@@ -7029,7 +5793,7 @@ def monthly_report():
 
     try:
 
-        requested_month = request.args.get(
+        month = request.args.get(
 
             "month",
 
@@ -7042,13 +5806,13 @@ def monthly_report():
 
         if not re.fullmatch(
             r"\d{4}-\d{2}",
-            requested_month
+            month
         ):
 
             return jsonify({
 
                 "error":
-                    "Month must be in YYYY-MM format.",
+                    "Month must be in YYYY-MM format."
 
             }), 400
 
@@ -7056,7 +5820,7 @@ def monthly_report():
         return jsonify(
 
             get_monthly_report_data(
-                requested_month
+                month
             )
 
         )
@@ -7079,9 +5843,8 @@ def monthly_report():
 
 
 # ============================================================
-# MONTHLY REPORT PDF
+# PDF REPORT
 # ============================================================
-
 
 @app.route(
     "/api/monthly-report/pdf",
@@ -7091,7 +5854,7 @@ def monthly_report_pdf():
 
     try:
 
-        requested_month = request.args.get(
+        month = request.args.get(
 
             "month",
 
@@ -7104,27 +5867,21 @@ def monthly_report_pdf():
 
         if not re.fullmatch(
             r"\d{4}-\d{2}",
-            requested_month
+            month
         ):
 
             return jsonify({
 
                 "error":
-                    "Month must be in YYYY-MM format.",
+                    "Month must be in YYYY-MM format."
 
             }), 400
 
 
-        report = (
-            get_monthly_report_data(
-                requested_month
-            )
+        report = get_monthly_report_data(
+            month
         )
 
-
-        # ----------------------------------------------------
-        # PDF BUFFER
-        # ----------------------------------------------------
 
         buffer = BytesIO()
 
@@ -7141,17 +5898,13 @@ def monthly_report_pdf():
 
             topMargin=40,
 
-            bottomMargin=40,
+            bottomMargin=40
 
         )
 
 
         styles = getSampleStyleSheet()
 
-
-        # ----------------------------------------------------
-        # STYLES
-        # ----------------------------------------------------
 
         title_style = ParagraphStyle(
 
@@ -7165,7 +5918,7 @@ def monthly_report_pdf():
 
             alignment=TA_CENTER,
 
-            spaceAfter=8,
+            spaceAfter=8
 
         )
 
@@ -7184,14 +5937,14 @@ def monthly_report_pdf():
 
             textColor=colors.grey,
 
-            spaceAfter=20,
+            spaceAfter=20
 
         )
 
 
         heading_style = ParagraphStyle(
 
-            "SectionHeading",
+            "FinPilotHeading",
 
             parent=styles[
                 "Heading2"
@@ -7201,14 +5954,14 @@ def monthly_report_pdf():
 
             spaceBefore=15,
 
-            spaceAfter=10,
+            spaceAfter=10
 
         )
 
 
         normal_style = ParagraphStyle(
 
-            "NormalText",
+            "FinPilotNormal",
 
             parent=styles[
                 "Normal"
@@ -7216,17 +5969,13 @@ def monthly_report_pdf():
 
             fontSize=10,
 
-            leading=14,
+            leading=14
 
         )
 
 
         story = []
 
-
-        # ----------------------------------------------------
-        # TITLE
-        # ----------------------------------------------------
 
         story.append(
 
@@ -7258,10 +6007,7 @@ def monthly_report_pdf():
 
             Paragraph(
 
-                (
-                    f"Report Period: "
-                    f"{requested_month}"
-                ),
+                f"Report Period: {month}",
 
                 normal_style
 
@@ -7282,61 +6028,44 @@ def monthly_report_pdf():
         # SUMMARY
         # ----------------------------------------------------
 
-        summary_data = [
+        summary = Table(
 
             [
 
-                "Income",
+                [
+                    "Income",
+                    "Expenses",
+                    "Savings",
+                    "Savings Rate"
+                ],
 
-                "Expenses",
+                [
 
-                "Savings",
+                    f"Rs. {report['income']:,.2f}",
 
-                "Savings Rate",
+                    f"Rs. {report['expenses']:,.2f}",
 
-            ],
+                    f"Rs. {report['savings']:,.2f}",
 
-            [
-
-                (
-                    f"Rs. "
-                    f"{report['income']:,.2f}"
-                ),
-
-                (
-                    f"Rs. "
-                    f"{report['expenses']:,.2f}"
-                ),
-
-                (
-                    f"Rs. "
-                    f"{report['savings']:,.2f}"
-                ),
-
-                (
                     f"{report['savings_rate']:.1f}%"
-                ),
+
+                ]
 
             ],
-
-        ]
-
-
-        summary_table = Table(
-
-            summary_data,
 
             colWidths=[
+
                 125,
                 125,
                 125,
                 125
+
             ]
 
         )
 
 
-        summary_table.setStyle(
+        summary.setStyle(
 
             TableStyle([
 
@@ -7346,28 +6075,28 @@ def monthly_report_pdf():
                     (-1, 0),
                     colors.HexColor(
                         "#111827"
-                    ),
+                    )
                 ),
 
                 (
                     "TEXTCOLOR",
                     (0, 0),
                     (-1, 0),
-                    colors.white,
+                    colors.white
                 ),
 
                 (
                     "FONTNAME",
                     (0, 0),
                     (-1, 0),
-                    "Helvetica-Bold",
+                    "Helvetica-Bold"
                 ),
 
                 (
                     "ALIGN",
                     (0, 0),
                     (-1, -1),
-                    "CENTER",
+                    "CENTER"
                 ),
 
                 (
@@ -7375,29 +6104,22 @@ def monthly_report_pdf():
                     (0, 0),
                     (-1, -1),
                     0.5,
-                    colors.lightgrey,
-                ),
-
-                (
-                    "BACKGROUND",
-                    (0, 1),
-                    (-1, 1),
-                    colors.whitesmoke,
+                    colors.lightgrey
                 ),
 
                 (
                     "TOPPADDING",
                     (0, 0),
                     (-1, -1),
-                    10,
+                    10
                 ),
 
                 (
                     "BOTTOMPADDING",
                     (0, 0),
                     (-1, -1),
-                    10,
-                ),
+                    10
+                )
 
             ])
 
@@ -7405,7 +6127,7 @@ def monthly_report_pdf():
 
 
         story.append(
-            summary_table
+            summary
         )
 
 
@@ -7426,22 +6148,7 @@ def monthly_report_pdf():
         )
 
 
-        category_data = [
-
-            [
-
-                "Category",
-
-                "Amount",
-
-                "Percentage",
-
-            ]
-
-        ]
-
-
-        total_category_spending = sum(
+        total = sum(
 
             report[
                 "categories"
@@ -7450,34 +6157,42 @@ def monthly_report_pdf():
         )
 
 
-        sorted_categories = sorted(
+        category_data = [
+
+            [
+                "Category",
+                "Amount",
+                "Percentage"
+            ]
+
+        ]
+
+
+        for category, amount
+        in sorted(
 
             report[
                 "categories"
             ].items(),
 
-            key=lambda item:
-                item[1],
+            key=lambda x:
+                x[1],
 
-            reverse=True,
+            reverse=True
 
-        )
+        ):
 
+            pct = (
 
-        for category, amount
-        in sorted_categories:
+                amount /
+                total *
+                100
 
-            percentage = (
+                if total > 0
 
-                (
-                    amount /
-                    total_category_spending
-                )
-                * 100
+                else
 
-                if total_category_spending > 0
-
-                else 0
+                0
 
             )
 
@@ -7488,14 +6203,9 @@ def monthly_report_pdf():
                     category
                 ),
 
-                (
-                    f"Rs. "
-                    f"{amount:,.2f}"
-                ),
+                f"Rs. {amount:,.2f}",
 
-                (
-                    f"{percentage:.1f}%"
-                ),
+                f"{pct:.1f}%"
 
             ])
 
@@ -7510,7 +6220,7 @@ def monthly_report_pdf():
 
                 "Rs. 0.00",
 
-                "0%",
+                "0%"
 
             ])
 
@@ -7520,9 +6230,11 @@ def monthly_report_pdf():
             category_data,
 
             colWidths=[
+
                 250,
                 150,
                 100
+
             ]
 
         )
@@ -7538,21 +6250,21 @@ def monthly_report_pdf():
                     (-1, 0),
                     colors.HexColor(
                         "#111827"
-                    ),
+                    )
                 ),
 
                 (
                     "TEXTCOLOR",
                     (0, 0),
                     (-1, 0),
-                    colors.white,
+                    colors.white
                 ),
 
                 (
                     "FONTNAME",
                     (0, 0),
                     (-1, 0),
-                    "Helvetica-Bold",
+                    "Helvetica-Bold"
                 ),
 
                 (
@@ -7560,29 +6272,29 @@ def monthly_report_pdf():
                     (0, 0),
                     (-1, -1),
                     0.5,
-                    colors.lightgrey,
+                    colors.lightgrey
                 ),
 
                 (
                     "ALIGN",
                     (1, 1),
                     (-1, -1),
-                    "RIGHT",
+                    "RIGHT"
                 ),
 
                 (
                     "TOPPADDING",
                     (0, 0),
                     (-1, -1),
-                    7,
+                    7
                 ),
 
                 (
                     "BOTTOMPADDING",
                     (0, 0),
                     (-1, -1),
-                    7,
-                ),
+                    7
+                )
 
             ])
 
@@ -7611,37 +6323,27 @@ def monthly_report_pdf():
         )
 
 
-        insights = (
+        report_insights = (
 
             report["insights"]
 
             or
 
             [
-
-                (
-                    "There are not enough recorded "
-                    "transactions to generate detailed insights."
-                )
-
+                "No major insights detected for this month."
             ]
 
         )
 
 
-        for insight in insights:
+        for insight
+        in report_insights:
 
             story.append(
 
                 Paragraph(
 
-                    (
-                        "• "
-                        +
-                        str(
-                            insight
-                        )
-                    ),
+                    f"• {insight}",
 
                     normal_style
 
@@ -7727,9 +6429,11 @@ def monthly_report_pdf():
             as_attachment=True,
 
             download_name=(
+
                 f"FinPilot_Report_"
-                f"{requested_month}.pdf"
-            ),
+                f"{month}.pdf"
+
+            )
 
         )
 
@@ -7751,9 +6455,8 @@ def monthly_report_pdf():
 
 
 # ============================================================
-# HEALTH CHECK
+# HEALTH
 # ============================================================
-
 
 @app.route(
     "/api/health",
@@ -7770,7 +6473,7 @@ def health():
             "FinPilot backend is running.",
 
         "timestamp":
-            datetime.now().isoformat(),
+            datetime.now().isoformat()
 
     })
 
@@ -7778,7 +6481,6 @@ def health():
 # ============================================================
 # ERROR HANDLERS
 # ============================================================
-
 
 @app.errorhandler(413)
 def request_too_large(
@@ -7808,7 +6510,7 @@ def request_too_large(
                 (
                     "Uploaded file is too large. "
                     "Maximum size is 16 MB."
-                ),
+                )
 
         }), 413
 
@@ -7817,9 +6519,6 @@ def request_too_large(
         "Uploaded file is too large.",
         413
     )
-
-
-# ------------------------------------------------------------
 
 
 @app.errorhandler(404)
@@ -7847,7 +6546,7 @@ def not_found(
                 False,
 
             "error":
-                "Route not found.",
+                "Route not found."
 
         }), 404
 
@@ -7856,9 +6555,6 @@ def not_found(
         "Page not found.",
         404
     )
-
-
-# ------------------------------------------------------------
 
 
 @app.errorhandler(500)
@@ -7886,7 +6582,7 @@ def internal_error(
                 False,
 
             "error":
-                "Internal server error.",
+                "Internal server error."
 
         }), 500
 
@@ -7898,7 +6594,7 @@ def internal_error(
 
 
 # ============================================================
-# LOCAL RUN
+# RUN
 # ============================================================
 
 if __name__ == "__main__":
@@ -7916,6 +6612,6 @@ if __name__ == "__main__":
 
         ),
 
-        debug=False,
+        debug=False
 
     )
