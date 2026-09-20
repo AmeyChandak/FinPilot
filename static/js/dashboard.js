@@ -1,11 +1,11 @@
 /* ============================================================
    FINPILOT DASHBOARD
-   Compatible with current dashboard.html
+   Final version for current dashboard.html
    ============================================================ */
 
 let financialData = null;
-let spendingChart = null;
 let selectedFileObject = null;
+let spendingChart = null;
 
 
 /* ============================================================
@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", function () {
     loadGoalImpact();
     loadBudgetAnalysis();
 
-    console.log("FinPilot dashboard loaded.");
+    console.log("FinPilot dashboard ready.");
 
 });
 
@@ -36,29 +36,22 @@ function setupFilePicker() {
     const fileInput =
         document.getElementById("fileInput");
 
-    const uploadButton =
-        document.getElementById("uploadBtn");
-
     const selectedFile =
         document.getElementById("selectedFile");
+
+    const uploadBtn =
+        document.getElementById("uploadBtn");
 
 
     if (!fileInput) {
 
         console.error(
-            "fileInput not found."
+            "fileInput element not found."
         );
 
         return;
     }
 
-
-    /*
-     * When user selects a file:
-     * DO NOT upload automatically.
-     *
-     * Just show the filename.
-     */
 
     fileInput.addEventListener(
         "change",
@@ -99,9 +92,7 @@ function setupFilePicker() {
 
                 selectedFile.innerHTML = `
 
-                    <strong>
-                        Selected file:
-                    </strong>
+                    <strong>Selected file:</strong>
 
                     <span>
                         ${escapeHTML(file.name)}
@@ -112,12 +103,12 @@ function setupFilePicker() {
             }
 
 
-            if (uploadButton) {
+            if (uploadBtn) {
 
-                uploadButton.disabled =
+                uploadBtn.disabled =
                     false;
 
-                uploadButton.textContent =
+                uploadBtn.textContent =
                     "Analyze Statement";
 
             }
@@ -134,7 +125,9 @@ function setupFilePicker() {
 
 
 /* ============================================================
-   UPLOAD / ANALYZE STATEMENT
+   UPLOAD STATEMENT
+   Called from:
+   onclick="uploadStatement()"
    ============================================================ */
 
 async function uploadStatement() {
@@ -142,23 +135,14 @@ async function uploadStatement() {
     const fileInput =
         document.getElementById("fileInput");
 
-    const uploadButton =
+    const uploadBtn =
         document.getElementById("uploadBtn");
-
-
-    if (!fileInput) {
-
-        alert(
-            "File picker is not available."
-        );
-
-        return;
-    }
 
 
     const file =
         selectedFileObject ||
         (
+            fileInput &&
             fileInput.files &&
             fileInput.files[0]
         );
@@ -174,10 +158,6 @@ async function uploadStatement() {
     }
 
 
-    /*
-     * Supported formats.
-     */
-
     const extension =
         file.name
             .split(".")
@@ -185,21 +165,22 @@ async function uploadStatement() {
             .toLowerCase();
 
 
-    const allowed =
-        [
-            "csv",
-            "xlsx",
-            "xls",
-            "pdf",
-            "docx",
-            "jpg",
-            "jpeg",
-            "png"
-        ];
+    const allowedExtensions = [
+
+        "csv",
+        "xlsx",
+        "xls",
+        "pdf",
+        "docx",
+        "jpg",
+        "jpeg",
+        "png"
+
+    ];
 
 
     if (
-        !allowed.includes(
+        !allowedExtensions.includes(
             extension
         )
     ) {
@@ -214,23 +195,18 @@ async function uploadStatement() {
 
 
     /*
-     * UI state.
+     * Disable button while processing.
      */
 
-    if (uploadButton) {
+    if (uploadBtn) {
 
-        uploadButton.disabled =
+        uploadBtn.disabled =
             true;
 
-        uploadButton.textContent =
+        uploadBtn.textContent =
             "Analyzing...";
 
     }
-
-
-    showUploadStatus(
-        "Uploading and analyzing your financial statement..."
-    );
 
 
     setDataStatus(
@@ -238,8 +214,13 @@ async function uploadStatement() {
     );
 
 
+    showUploadStatus(
+        "Uploading and analyzing your financial statement..."
+    );
+
+
     /*
-     * FormData.
+     * FormData
      */
 
     const formData =
@@ -285,28 +266,33 @@ async function uploadStatement() {
 
 
         /*
-         * Backend response contains:
+         * IMPORTANT:
+         *
+         * Upload API returns:
          *
          * {
-         *     success: true,
-         *     message: "...",
-         *     filename: "...",
-         *     analysis: {...}
+         *   success: true,
+         *   analysis: {
+         *      income,
+         *      expenses,
+         *      savings,
+         *      ...
+         *   }
          * }
          */
 
-        const analysis =
-            normalizeAnalysisResponse(
+        financialData =
+            normalizeUploadResponse(
                 data
             );
 
 
-        financialData =
-            analysis;
-
-
         /*
-         * Render upload result immediately.
+         * Render the uploaded statement DIRECTLY.
+         *
+         * Do NOT call loadDashboardData()
+         * here because that can overwrite this
+         * response with empty database values.
          */
 
         renderFinancialOverview(
@@ -339,8 +325,13 @@ async function uploadStatement() {
 
 
         /*
-         * Success message.
+         * Success message
          */
+
+        let message =
+            data.message ||
+            `Successfully analyzed ${financialData.transaction_count} transaction(s).`;
+
 
         const added =
             Number(
@@ -356,14 +347,9 @@ async function uploadStatement() {
             );
 
 
-        let message =
-            data.message ||
-            `${file.name} analyzed successfully.`;
-
-
         if (
-            added > 0 ||
-            skipped > 0
+            added ||
+            skipped
         ) {
 
             message +=
@@ -378,25 +364,20 @@ async function uploadStatement() {
         );
 
 
+        showAIResult(
+            message
+        );
+
+
         setDataStatus(
             "Data loaded"
         );
 
 
         /*
-         * Show AI result block.
+         * Refresh separate DB sections.
+         * These will not overwrite financialData.
          */
-
-        showAIResult(
-            message
-        );
-
-
-        /*
-         * Refresh database-backed sections.
-         */
-
-        await loadDashboardData();
 
         await loadGoalImpact();
 
@@ -404,7 +385,7 @@ async function uploadStatement() {
 
 
         /*
-         * Run the autonomous agent.
+         * Run autonomous analysis.
          */
 
         await runAutonomousAgent();
@@ -438,13 +419,26 @@ async function uploadStatement() {
 
     } finally {
 
-        if (uploadButton) {
+        if (uploadBtn) {
 
-            uploadButton.disabled =
+            uploadBtn.disabled =
                 false;
 
-            uploadButton.textContent =
+            uploadBtn.textContent =
                 "Analyze Statement";
+
+        }
+
+
+        /*
+         * Reset input so the same file
+         * can be selected again.
+         */
+
+        if (fileInput) {
+
+            fileInput.value =
+                "";
 
         }
 
@@ -457,16 +451,14 @@ async function uploadStatement() {
    NORMALIZE UPLOAD RESPONSE
    ============================================================ */
 
-function normalizeAnalysisResponse(
+function normalizeUploadResponse(
     data
 ) {
 
     const source =
-        (
-            data &&
-            data.analysis &&
-            typeof data.analysis === "object"
-        )
+        data &&
+        data.analysis &&
+        typeof data.analysis === "object"
             ? data.analysis
             : (
                 data ||
@@ -478,17 +470,17 @@ function normalizeAnalysisResponse(
         Array.isArray(
             source.transactions
         )
-            ? source.transactions
+            ? source.transactions.map(
+                normalizeTransaction
+            )
             : [];
 
 
-    const normalized = {
+    return {
 
         success:
-            Boolean(
-                data &&
-                data.success !== false
-            ),
+            data &&
+            data.success !== false,
 
         filename:
             data &&
@@ -505,17 +497,15 @@ function normalizeAnalysisResponse(
         added:
             Number(
                 data &&
-                data.added
-                    ? data.added
-                    : 0
+                data.added ||
+                0
             ),
 
         skipped:
             Number(
                 data &&
-                data.skipped
-                    ? data.skipped
-                    : 0
+                data.skipped ||
+                0
             ),
 
         income:
@@ -591,32 +581,24 @@ function normalizeAnalysisResponse(
             Array.isArray(
                 source.recent_transactions
             )
-                ? source.recent_transactions
+                ? source.recent_transactions.map(
+                    normalizeTransaction
+                )
                 : transactions
                     .slice()
                     .reverse()
                     .slice(
                         0,
                         10
-                    ),
-
-        budget_progress:
-            Array.isArray(
-                source.budget_progress
-            )
-                ? source.budget_progress
-                : []
+                    )
 
     };
-
-
-    return normalized;
 
 }
 
 
 /* ============================================================
-   LOAD DASHBOARD FROM DATABASE
+   LOAD DASHBOARD DATA
    ============================================================ */
 
 async function loadDashboardData() {
@@ -625,11 +607,7 @@ async function loadDashboardData() {
 
         const response =
             await fetch(
-                "/api/dashboard",
-                {
-                    method:
-                        "GET"
-                }
+                "/api/dashboard"
             );
 
 
@@ -685,9 +663,8 @@ async function loadDashboardData() {
 
 
         if (
-            Number(
-                financialData.transaction_count
-            ) > 0
+            financialData.transaction_count >
+            0
         ) {
 
             setDataStatus(
@@ -709,6 +686,10 @@ async function loadDashboardData() {
             error
         );
 
+        /*
+         * Keep the default ₹0 state.
+         */
+
         setDataStatus(
             "No data loaded"
         );
@@ -719,7 +700,7 @@ async function loadDashboardData() {
 
 
 /* ============================================================
-   NORMALIZE DASHBOARD API
+   NORMALIZE DASHBOARD RESPONSE
    ============================================================ */
 
 function normalizeDashboardResponse(
@@ -730,7 +711,9 @@ function normalizeDashboardResponse(
         Array.isArray(
             data.transactions
         )
-            ? data.transactions
+            ? data.transactions.map(
+                normalizeTransaction
+            )
             : [];
 
 
@@ -812,7 +795,9 @@ function normalizeDashboardResponse(
             Array.isArray(
                 data.recent_transactions
             )
-                ? data.recent_transactions
+                ? data.recent_transactions.map(
+                    normalizeTransaction
+                )
                 : transactions
                     .slice()
                     .reverse()
@@ -841,7 +826,7 @@ function normalizeDashboardResponse(
 
 
 /* ============================================================
-   FINANCIAL SUMMARY
+   FINANCIAL OVERVIEW
    ============================================================ */
 
 function renderFinancialOverview(
@@ -895,7 +880,7 @@ function renderFinancialOverview(
 
 
 /* ============================================================
-   CHART
+   SPENDING DOUGHNUT CHART
    ============================================================ */
 
 function renderSpending(
@@ -913,14 +898,27 @@ function renderSpending(
     }
 
 
-    const categories =
+    if (
+        typeof Chart ===
+        "undefined"
+    ) {
+
+        console.error(
+            "Chart.js not loaded."
+        );
+
+        return;
+    }
+
+
+    const categorySpending =
         data.category_spending ||
         {};
 
 
     const entries =
         Object.entries(
-            categories
+            categorySpending
         )
         .filter(
             function (
@@ -953,19 +951,6 @@ function renderSpending(
 
 
     if (
-        typeof Chart ===
-        "undefined"
-    ) {
-
-        console.error(
-            "Chart.js is not loaded."
-        );
-
-        return;
-    }
-
-
-    if (
         spendingChart
     ) {
 
@@ -977,10 +962,7 @@ function renderSpending(
     }
 
 
-    if (
-        !entries.length
-    ) {
-
+    if (!entries.length) {
         return;
     }
 
@@ -1186,80 +1168,88 @@ function renderCategories(
     }
 
 
-    const max =
-        Number(
-            entries[0][1]
+    const maxAmount =
+        Math.max.apply(
+            null,
+            entries.map(
+                function (
+                    item
+                ) {
+
+                    return Number(
+                        item[1]
+                    );
+
+                }
+            )
         );
 
 
     container.innerHTML =
-        entries
-            .map(
-                function (
-                    item,
-                    index
-                ) {
+        entries.map(
+            function (
+                item,
+                index
+            ) {
 
-                    const category =
-                        item[0];
+                const category =
+                    item[0];
 
-                    const amount =
-                        Number(
-                            item[1]
-                        );
+                const amount =
+                    Number(
+                        item[1]
+                    );
 
-                    const percent =
-                        max > 0
-                            ? (
-                                amount /
-                                max
-                            ) * 100
-                            : 0;
+                const width =
+                    maxAmount > 0
+                        ? (
+                            amount /
+                            maxAmount
+                        ) * 100
+                        : 0;
 
 
-                    return `
+                return `
 
-                        <div
-                            class="category-item"
-                        >
+                    <div class="category-item">
 
-                            <div class="category-top">
+                        <div class="category-top">
 
-                                <span class="category-name">
-                                    ${escapeHTML(category)}
-                                </span>
+                            <span class="category-name">
+                                ${escapeHTML(category)}
+                            </span>
 
-                                <strong class="category-value">
-                                    ${formatINR(amount)}
-                                </strong>
-
-                            </div>
-
-                            <div class="category-bar">
-
-                                <div
-                                    class="category-fill"
-                                    style="
-                                        width:${percent}%;
-                                        background:${getCategoryColor(index)};
-                                    "
-                                ></div>
-
-                            </div>
+                            <strong class="category-value">
+                                ${formatINR(amount)}
+                            </strong>
 
                         </div>
 
-                    `;
 
-                }
-            )
-            .join("");
+                        <div class="category-bar">
+
+                            <div
+                                class="category-fill"
+                                style="
+                                    width:${width}%;
+                                    background:${getCategoryColor(index)};
+                                "
+                            ></div>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            }
+        ).join("");
 
 }
 
 
 /* ============================================================
-   CATEGORY COLORS
+   CATEGORY COLOR
    ============================================================ */
 
 function getCategoryColor(
@@ -1275,7 +1265,9 @@ function getCategoryColor(
         "#10B981",
         "#F59E0B",
         "#06B6D4",
-        "#EF4444"
+        "#EF4444",
+        "#8B5CF6",
+        "#14B8A6"
 
     ];
 
@@ -1289,7 +1281,7 @@ function getCategoryColor(
 
 
 /* ============================================================
-   RECURRING
+   RECURRING PAYMENTS
    ============================================================ */
 
 function renderRecurring(
@@ -1330,55 +1322,53 @@ function renderRecurring(
 
 
     container.innerHTML =
-        recurring
-            .map(
-                function (
-                    item
-                ) {
+        recurring.map(
+            function (
+                item
+            ) {
 
-                    return `
+                return `
 
-                        <div class="recurring-item">
+                    <div class="recurring-item">
 
-                            <div>
-
-                                <strong>
-                                    ${
-                                        escapeHTML(
-                                            item.description ||
-                                            "Recurring payment"
-                                        )
-                                    }
-                                </strong>
-
-                                <span>
-                                    ${
-                                        Number(
-                                            item.payments ||
-                                            0
-                                        )
-                                    }
-                                    payments detected
-                                </span>
-
-                            </div>
+                        <div>
 
                             <strong>
                                 ${
-                                    formatINR(
-                                        item.amount ||
-                                        0
+                                    escapeHTML(
+                                        item.description ||
+                                        "Recurring payment"
                                     )
                                 }
                             </strong>
 
+                            <span>
+                                ${
+                                    Number(
+                                        item.payments ||
+                                        0
+                                    )
+                                }
+                                payments detected
+                            </span>
+
                         </div>
 
-                    `;
+                        <strong>
+                            ${
+                                formatINR(
+                                    item.amount ||
+                                    0
+                                )
+                            }
+                        </strong>
 
-                }
-            )
-            .join("");
+                    </div>
+
+                `;
+
+            }
+        ).join("");
 
 }
 
@@ -1425,67 +1415,69 @@ function renderUnusual(
 
 
     container.innerHTML =
-        unusual
-            .map(
-                function (
-                    item
-                ) {
+        unusual.map(
+            function (
+                item
+            ) {
 
-                    return `
+                const amount =
+                    Math.abs(
+                        Number(
+                            item.amount ||
+                            0
+                        )
+                    );
 
-                        <div class="unusual-item">
 
-                            <div>
+                return `
 
-                                <strong>
-                                    ${
-                                        escapeHTML(
-                                            item.description ||
-                                            "Unusual transaction"
-                                        )
-                                    }
-                                </strong>
+                    <div class="unusual-item">
 
-                                <span>
-                                    ${
-                                        escapeHTML(
-                                            item.date ||
-                                            ""
-                                        )
-                                    }
-
-                                    ${
-                                        item.average !==
-                                        undefined
-                                            ? " · Average: " +
-                                              formatINR(
-                                                  item.average
-                                              )
-                                            : ""
-                                    }
-
-                                </span>
-
-                            </div>
+                        <div>
 
                             <strong>
                                 ${
-                                    formatINR(
-                                        Math.abs(
-                                            item.amount ||
-                                            0
-                                        )
+                                    escapeHTML(
+                                        item.description ||
+                                        "Unusual transaction"
                                     )
                                 }
                             </strong>
 
+                            <span>
+
+                                ${
+                                    escapeHTML(
+                                        item.date ||
+                                        ""
+                                    )
+                                }
+
+                                ${
+                                    item.average !==
+                                    undefined
+                                        ? " · Average: " +
+                                          formatINR(
+                                              item.average
+                                          )
+                                        : ""
+                                }
+
+                            </span>
+
                         </div>
 
-                    `;
 
-                }
-            )
-            .join("");
+                        <strong>
+                            ${formatINR(amount)}
+                        </strong>
+
+                    </div>
+
+                `;
+
+            }
+        ).join("");
 
 }
 
@@ -1520,8 +1512,10 @@ function renderMonthlySpending(
                 b
             ) {
 
-                return a[0].localeCompare(
-                    b[0]
+                return (
+                    a[0].localeCompare(
+                        b[0]
+                    )
                 );
 
             }
@@ -1542,7 +1536,7 @@ function renderMonthlySpending(
     }
 
 
-    const max =
+    const maximum =
         Math.max.apply(
             null,
             entries.map(
@@ -1560,63 +1554,62 @@ function renderMonthlySpending(
 
 
     container.innerHTML =
-        entries
-            .map(
-                function (
-                    item
-                ) {
+        entries.map(
+            function (
+                item
+            ) {
 
-                    const month =
-                        item[0];
+                const month =
+                    item[0];
 
-                    const amount =
-                        Number(
-                            item[1]
-                        );
+                const amount =
+                    Number(
+                        item[1]
+                    );
 
-                    const width =
-                        max > 0
-                            ? (
-                                amount /
-                                max
-                            ) * 100
-                            : 0;
+                const width =
+                    maximum > 0
+                        ? (
+                            amount /
+                            maximum
+                        ) * 100
+                        : 0;
 
 
-                    return `
+                return `
 
-                        <div class="monthly-item">
+                    <div class="monthly-item">
 
-                            <div class="monthly-header">
+                        <div class="monthly-header">
 
-                                <span>
-                                    ${escapeHTML(month)}
-                                </span>
+                            <span>
+                                ${escapeHTML(month)}
+                            </span>
 
-                                <strong>
-                                    ${formatINR(amount)}
-                                </strong>
-
-                            </div>
-
-                            <div class="monthly-bar">
-
-                                <div
-                                    class="monthly-fill"
-                                    style="
-                                        width:${width}%;
-                                    "
-                                ></div>
-
-                            </div>
+                            <strong>
+                                ${formatINR(amount)}
+                            </strong>
 
                         </div>
 
-                    `;
 
-                }
-            )
-            .join("");
+                        <div class="monthly-bar">
+
+                            <div
+                                class="monthly-fill"
+                                style="
+                                    width:${width}%;
+                                "
+                            ></div>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            }
+        ).join("");
 
 }
 
@@ -1663,86 +1656,87 @@ function renderTransactions(
 
 
     container.innerHTML =
-        transactions
-            .map(
-                function (
-                    tx
-                ) {
+        transactions.map(
+            function (
+                transaction
+            ) {
 
-                    const normalized =
-                        normalizeTransaction(
-                            tx
-                        );
-
-
-                    const amount =
-                        normalized.amount;
+                const tx =
+                    normalizeTransaction(
+                        transaction
+                    );
 
 
-                    const isIncome =
-                        amount > 0;
+                const isIncome =
+                    tx.amount > 0;
 
 
-                    return `
+                return `
 
-                        <div class="transaction-row">
+                    <div class="transaction-row">
 
-                            <div class="transaction-date">
-                                ${
-                                    escapeHTML(
-                                        normalized.date
-                                    )
-                                }
-                            </div>
+                        <div class="transaction-date">
+                            ${
+                                escapeHTML(
+                                    tx.date
+                                )
+                            }
+                        </div>
 
-                            <div class="transaction-description">
-                                ${
-                                    escapeHTML(
-                                        normalized.description
-                                    )
-                                }
-                            </div>
 
-                            <div class="transaction-category">
-                                ${
-                                    escapeHTML(
-                                        normalized.category
-                                    )
-                                }
-                            </div>
+                        <div class="transaction-description">
 
-                            <div class="
-                                transaction-amount
-                                ${
-                                    isIncome
-                                        ? "income"
-                                        : "expense"
-                                }
-                            ">
-
-                                ${
-                                    isIncome
-                                        ? "+"
-                                        : "-"
-                                }
-
-                                ${
-                                    formatINR(
-                                        Math.abs(
-                                            amount
-                                        )
-                                    )
-                                }
-
-                            </div>
+                            ${
+                                escapeHTML(
+                                    tx.description
+                                )
+                            }
 
                         </div>
 
-                    `;
 
-                }
-            )
-            .join("");
+                        <div class="transaction-category">
+
+                            ${
+                                escapeHTML(
+                                    tx.category
+                                )
+                            }
+
+                        </div>
+
+
+                        <div class="
+                            transaction-amount
+                            ${
+                                isIncome
+                                    ? "income"
+                                    : "expense"
+                            }
+                        ">
+
+                            ${
+                                isIncome
+                                    ? "+"
+                                    : "-"
+                            }
+
+                            ${
+                                formatINR(
+                                    Math.abs(
+                                        tx.amount
+                                    )
+                                )
+                            }
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            }
+        ).join("");
 
 }
 
@@ -1770,12 +1764,6 @@ function normalizeTransaction(
         );
 
 
-    /*
-     * Database records may store:
-     *
-     * amount + type
-     */
-
     const type =
         String(
             tx.type ||
@@ -1784,6 +1772,11 @@ function normalizeTransaction(
         )
         .toLowerCase();
 
+
+    /*
+     * Database stores expense type
+     * separately.
+     */
 
     if (
         type === "expense"
@@ -1820,7 +1813,7 @@ function normalizeTransaction(
         description:
             tx.description ||
             tx.Description ||
-            "Unknown",
+            "Unknown transaction",
 
         amount:
             amount,
@@ -1899,105 +1892,97 @@ async function loadGoalImpact() {
 
 
         container.innerHTML =
-            goals
-                .map(
-                    function (
-                        goal
-                    ) {
+            goals.map(
+                function (
+                    goal
+                ) {
 
-                        const progress =
-                            Number(
-                                goal.progress ||
-                                0
-                            );
-
-
-                        const remaining =
-                            Number(
-                                goal.remaining_amount ||
-                                0
-                            );
+                    const progress =
+                        Number(
+                            goal.progress ||
+                            0
+                        );
 
 
-                        return `
+                    return `
 
-                            <div class="goal-impact-card">
+                        <div class="goal-impact-card">
 
-                                <div class="goal-impact-top">
+                            <div class="goal-impact-top">
 
-                                    <div>
-
-                                        <strong>
-                                            ${
-                                                escapeHTML(
-                                                    goal.name ||
-                                                    "Financial Goal"
-                                                )
-                                            }
-                                        </strong>
-
-                                        <span>
-                                            Target:
-                                            ${
-                                                formatINR(
-                                                    goal.target_amount
-                                                )
-                                            }
-                                        </span>
-
-                                    </div>
+                                <div>
 
                                     <strong>
-                                        ${progress.toFixed(1)}%
+                                        ${
+                                            escapeHTML(
+                                                goal.name ||
+                                                "Financial Goal"
+                                            )
+                                        }
                                     </strong>
 
-                                </div>
-
-
-                                <div class="progress-bar">
-
-                                    <div
-                                        class="progress-value"
-                                        style="
-                                            width:${Math.min(
-                                                progress,
-                                                100
-                                            )}%
-                                        "
-                                    ></div>
-
-                                </div>
-
-
-                                <div class="goal-impact-bottom">
-
                                     <span>
-                                        Remaining:
+                                        Target:
                                         ${
                                             formatINR(
-                                                remaining
-                                            )
-                                        }
-                                    </span>
-
-                                    <span>
-                                        Monthly savings:
-                                        ${
-                                            formatINR(
-                                                goal.monthly_savings
+                                                goal.target_amount
                                             )
                                         }
                                     </span>
 
                                 </div>
+
+
+                                <strong>
+                                    ${progress.toFixed(1)}%
+                                </strong>
 
                             </div>
 
-                        `;
 
-                    }
-                )
-                .join("");
+                            <div class="progress-bar">
+
+                                <div
+                                    class="progress-value"
+                                    style="
+                                        width:${Math.min(
+                                            progress,
+                                            100
+                                        )}%
+                                    "
+                                ></div>
+
+                            </div>
+
+
+                            <div class="goal-impact-bottom">
+
+                                <span>
+                                    Remaining:
+                                    ${
+                                        formatINR(
+                                            goal.remaining_amount
+                                        )
+                                    }
+                                </span>
+
+                                <span>
+                                    Monthly savings:
+                                    ${
+                                        formatINR(
+                                            goal.monthly_savings
+                                        )
+                                    }
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }
+            ).join("");
 
     } catch (error) {
 
@@ -2084,115 +2069,114 @@ async function loadBudgetAnalysis() {
 
 
         container.innerHTML =
-            budgets
-                .map(
-                    function (
-                        budget
-                    ) {
+            budgets.map(
+                function (
+                    budget
+                ) {
 
-                        const used =
-                            Number(
-                                budget.used_percent ||
-                                0
-                            );
-
-
-                        const status =
-                            budget.status ||
-                            "healthy";
+                    const usedPercent =
+                        Number(
+                            budget.used_percent ||
+                            0
+                        );
 
 
-                        return `
+                    const status =
+                        budget.status ||
+                        "healthy";
 
-                            <div class="
-                                budget-analysis-item
-                                ${escapeHTML(status)}
-                            ">
 
-                                <div class="budget-analysis-top">
+                    return `
 
-                                    <div>
+                        <div class="
+                            budget-analysis-item
+                            ${escapeHTML(status)}
+                        ">
 
-                                        <strong>
-                                            ${
-                                                escapeHTML(
-                                                    budget.category
-                                                )
-                                            }
-                                        </strong>
+                            <div class="budget-analysis-top">
 
-                                        <span>
-                                            ${
-                                                formatINR(
-                                                    budget.actual
-                                                )
-                                            }
-                                            /
-                                            ${
-                                                formatINR(
-                                                    budget.budget
-                                                )
-                                            }
-                                        </span>
-
-                                    </div>
+                                <div>
 
                                     <strong>
-                                        ${used.toFixed(1)}%
+                                        ${
+                                            escapeHTML(
+                                                budget.category
+                                            )
+                                        }
                                     </strong>
 
-                                </div>
-
-
-                                <div class="progress-bar">
-
-                                    <div
-                                        class="progress-value"
-                                        style="
-                                            width:${Math.min(
-                                                used,
-                                                100
-                                            )}%
-                                        "
-                                    ></div>
-
-                                </div>
-
-
-                                <div class="budget-analysis-bottom">
-
                                     <span>
-                                        Remaining:
                                         ${
                                             formatINR(
-                                                Math.max(
-                                                    Number(
-                                                        budget.remaining ||
-                                                        0
-                                                    ),
-                                                    0
-                                                )
+                                                budget.actual
                                             )
                                         }
-                                    </span>
-
-                                    <span>
+                                        /
                                         ${
-                                            statusLabel(
-                                                status
+                                            formatINR(
+                                                budget.budget
                                             )
                                         }
                                     </span>
 
                                 </div>
+
+
+                                <strong>
+                                    ${usedPercent.toFixed(1)}%
+                                </strong>
 
                             </div>
 
-                        `;
 
-                    }
-                )
-                .join("");
+                            <div class="progress-bar">
+
+                                <div
+                                    class="progress-value"
+                                    style="
+                                        width:${Math.min(
+                                            usedPercent,
+                                            100
+                                        )}%
+                                    "
+                                ></div>
+
+                            </div>
+
+
+                            <div class="budget-analysis-bottom">
+
+                                <span>
+                                    Remaining:
+                                    ${
+                                        formatINR(
+                                            Math.max(
+                                                Number(
+                                                    budget.remaining ||
+                                                    0
+                                                ),
+                                                0
+                                            )
+                                        )
+                                    }
+                                </span>
+
+                                <span>
+                                    ${
+                                        getBudgetStatusLabel(
+                                            status
+                                        )
+                                    }
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }
+            ).join("");
 
     } catch (error) {
 
@@ -2216,10 +2200,10 @@ async function loadBudgetAnalysis() {
 
 
 /* ============================================================
-   STATUS LABEL
+   BUDGET STATUS
    ============================================================ */
 
-function statusLabel(
+function getBudgetStatusLabel(
     status
 ) {
 
@@ -2249,7 +2233,7 @@ function statusLabel(
 
 
 /* ============================================================
-   AI RESULT MESSAGE
+   AI RESULT
    ============================================================ */
 
 function showAIResult(
@@ -2257,36 +2241,36 @@ function showAIResult(
     isError = false
 ) {
 
-    const section =
+    const result =
         document.getElementById(
             "aiResult"
         );
 
 
-    const text =
+    const resultText =
         document.getElementById(
             "aiResultText"
         );
 
 
-    if (!section) {
+    if (!result) {
         return;
     }
 
 
-    section.style.display =
+    result.style.display =
         "flex";
 
 
-    if (text) {
+    if (resultText) {
 
-        text.textContent =
+        resultText.textContent =
             message;
 
     }
 
 
-    section.classList.toggle(
+    result.classList.toggle(
         "error",
         Boolean(
             isError
@@ -2304,20 +2288,6 @@ async function runAutonomousAgent() {
 
     if (!financialData) {
         return;
-    }
-
-
-    const section =
-        document.getElementById(
-            "aiResult"
-        );
-
-
-    if (section) {
-
-        section.style.display =
-            "flex";
-
     }
 
 
@@ -2358,48 +2328,37 @@ async function runAutonomousAgent() {
 
         if (!response.ok) {
 
-            throw new Error(
-                data.error ||
-                "Agent analysis failed."
+            /*
+             * Agent failure should not break
+             * financial dashboard.
+             */
+
+            console.warn(
+                "Agent analysis failed:",
+                data.error
             );
 
+            return;
         }
 
 
-        /*
-         * Show agent summary if available.
-         */
-
-        const message =
-            data.message ||
-            data.summary ||
-            (
-                data.report &&
-                data.report.summary
+        const agentMessage =
+            getAgentMessage(
+                data
             );
 
 
         if (
-            message &&
-            typeof message ===
-            "string"
+            agentMessage
         ) {
 
             showAIResult(
-                message
+                agentMessage
             );
 
         }
 
-
     } catch (error) {
-
-        /*
-         * AI API is optional.
-         *
-         * The financial analysis itself remains usable
-         * even when the AI service is unavailable.
-         */
 
         console.warn(
             "Autonomous agent unavailable:",
@@ -2412,7 +2371,67 @@ async function runAutonomousAgent() {
 
 
 /* ============================================================
-   FINPILOT ASSISTANT
+   AGENT MESSAGE EXTRACTION
+   ============================================================ */
+
+function getAgentMessage(
+    data
+) {
+
+    if (!data) {
+        return "";
+    }
+
+
+    if (
+        typeof data.message ===
+        "string"
+    ) {
+
+        return data.message;
+
+    }
+
+
+    if (
+        typeof data.summary ===
+        "string"
+    ) {
+
+        return data.summary;
+
+    }
+
+
+    if (
+        data.report &&
+        typeof data.report.summary ===
+        "string"
+    ) {
+
+        return data.report.summary;
+
+    }
+
+
+    if (
+        data.report &&
+        typeof data.report.headline ===
+        "string"
+    ) {
+
+        return data.report.headline;
+
+    }
+
+
+    return "";
+
+}
+
+
+/* ============================================================
+   ASSISTANT SETUP
    ============================================================ */
 
 function setupAssistant() {
@@ -2483,16 +2502,17 @@ function setupQuickQuestions() {
                         );
 
 
-                    if (input) {
-
-                        input.value =
-                            question;
-
-                        input.focus();
-
-                        askFinPilot();
-
+                    if (!input) {
+                        return;
                     }
+
+
+                    input.value =
+                        question;
+
+                    input.focus();
+
+                    askFinPilot();
 
                 }
             );
@@ -2521,8 +2541,13 @@ async function askFinPilot() {
         );
 
 
-    if (!input || !messages) {
+    if (
+        !input ||
+        !messages
+    ) {
+
         return;
+
     }
 
 
@@ -2535,11 +2560,7 @@ async function askFinPilot() {
     }
 
 
-    /*
-     * Add user message.
-     */
-
-    appendAssistantMessage(
+    appendChatMessage(
         messages,
         question,
         "user"
@@ -2550,12 +2571,8 @@ async function askFinPilot() {
         "";
 
 
-    /*
-     * Add temporary response.
-     */
-
-    const loading =
-        appendAssistantMessage(
+    const loadingBubble =
+        appendChatMessage(
             messages,
             "FinPilot is thinking...",
             "assistant"
@@ -2614,22 +2631,21 @@ async function askFinPilot() {
             data.answer ||
             data.message ||
             data.response ||
-            "I couldn't generate an answer.";
+            "No answer returned.";
 
 
-        if (loading) {
+        if (loadingBubble) {
 
-            loading.textContent =
+            loadingBubble.textContent =
                 answer;
 
         }
 
-
     } catch (error) {
 
-        if (loading) {
+        if (loadingBubble) {
 
-            loading.textContent =
+            loadingBubble.textContent =
                 error.message ||
                 "Something went wrong.";
 
@@ -2644,7 +2660,7 @@ async function askFinPilot() {
    APPEND CHAT MESSAGE
    ============================================================ */
 
-function appendAssistantMessage(
+function appendChatMessage(
     container,
     message,
     type
@@ -2656,16 +2672,28 @@ function appendAssistantMessage(
         );
 
 
-    wrapper.className =
-        type === "user"
-            ? "user-message"
-            : "assistant-message";
-
-
     if (
         type ===
-        "assistant"
+        "user"
     ) {
+
+        wrapper.className =
+            "user-message";
+
+
+        wrapper.innerHTML = `
+
+            <div class="message-bubble user-bubble">
+                ${escapeHTML(message)}
+            </div>
+
+        `;
+
+    } else {
+
+        wrapper.className =
+            "assistant-message";
+
 
         wrapper.innerHTML = `
 
@@ -2674,16 +2702,6 @@ function appendAssistantMessage(
             </div>
 
             <div class="message-bubble">
-                ${escapeHTML(message)}
-            </div>
-
-        `;
-
-    } else {
-
-        wrapper.innerHTML = `
-
-            <div class="message-bubble user-bubble">
                 ${escapeHTML(message)}
             </div>
 
@@ -2701,59 +2719,8 @@ function appendAssistantMessage(
         container.scrollHeight;
 
 
-    const bubble =
-        wrapper.querySelector(
-            ".message-bubble"
-        );
-
-
-    return bubble;
-
-}
-
-
-/* ============================================================
-   NAVIGATION
-   ============================================================ */
-
-function setupNavigation() {
-
-    const links =
-        document.querySelectorAll(
-            ".sidebar-nav a"
-        );
-
-
-    links.forEach(
-        function (
-            link
-        ) {
-
-            link.addEventListener(
-                "click",
-                function () {
-
-                    links.forEach(
-                        function (
-                            item
-                        ) {
-
-                            item.classList.remove(
-                                "active"
-                            );
-
-                        }
-                    );
-
-
-                    link.classList.add(
-                        "active"
-                    );
-
-                }
-            );
-
-        }
+    return wrapper.querySelector(
+        ".message-bubble"
     );
 
 }
@@ -2792,58 +2759,38 @@ function showUploadStatus(
     isError = false
 ) {
 
-    /*
-     * Current dashboard does not require
-     * a dedicated status element,
-     * so show the message in AI result area
-     * only when appropriate.
-     */
-
-    const status =
+    const element =
         document.getElementById(
             "uploadStatus"
         );
 
 
-    if (status) {
-
-        status.textContent =
-            message;
-
-        status.classList.toggle(
-            "error",
-            Boolean(
-                isError
-            )
-        );
-
-        status.style.display =
-            "block";
-
+    if (!element) {
+        return;
     }
 
 
-    if (
-        isError
-    ) {
+    element.innerHTML = `
 
-        console.error(
-            message
-        );
+        <span class="status-line"></span>
 
-    } else {
+        ${escapeHTML(message)}
 
-        console.log(
-            message
-        );
+    `;
 
-    }
+
+    element.classList.toggle(
+        "error",
+        Boolean(
+            isError
+        )
+    );
 
 }
 
 
 /* ============================================================
-   TEXT HELPER
+   TEXT
    ============================================================ */
 
 function setText(
@@ -2901,7 +2848,7 @@ function formatINR(
 
 
 /* ============================================================
-   ESCAPE HTML
+   HTML ESCAPE
    ============================================================ */
 
 function escapeHTML(
@@ -2975,7 +2922,7 @@ async function safeJson(
 
 /* ============================================================
    GLOBAL FUNCTIONS
-   Required because dashboard.html uses onclick=""
+   Required by dashboard.html onclick=""
    ============================================================ */
 
 window.uploadStatement =
