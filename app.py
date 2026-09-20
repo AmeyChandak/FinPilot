@@ -93,73 +93,12 @@ ALLOWED_EXTENSIONS = {
 }
 
 
-def seed_demo_data():
-    """Seed the bundled demo statement on a fresh Render instance."""
 
-    try:
-        existing = get_transactions()
-
-        if existing:
-            return
-
-        if not os.path.exists(DEMO_FILE):
-            print("DEMO SEED: demo_transactions.csv not found.")
-            return
-
-        df = pd.read_csv(DEMO_FILE)
-        added = 0
-
-        for _, row in df.iterrows():
-            raw_amount = row.get("Amount", 0)
-
-            try:
-                amount = float(raw_amount)
-            except Exception:
-                continue
-
-            if amount == 0:
-                continue
-
-            description = str(
-                row.get("Description", "Unknown transaction")
-            ).strip()
-
-            transaction_date = str(
-                row.get("Date", date.today().isoformat())
-            ).strip()
-
-            transaction_type = (
-                "income" if amount > 0 else "expense"
-            )
-
-            transaction_id = add_transaction(
-                date=transaction_date,
-                description=description,
-                amount=abs(amount),
-                category=categorize(description),
-                transaction_type=transaction_type,
-                source="demo-seed"
-            )
-
-            if transaction_id:
-                added += 1
-
-        print(
-            f"DEMO SEED: added {added} transaction(s)."
-        )
-
-    except Exception as exc:
-        print(
-            "DEMO SEED ERROR:",
-            repr(exc)
-        )
-
-
-# Initialize the database module first, then seed only when empty.
-try:
-    seed_demo_data()
-except Exception as exc:
-    print("STARTUP ERROR:", repr(exc))
+# Demo data is intentionally NOT seeded during module import.
+# Render waits for the application process to boot before it can
+# complete its internal health check. Startup-time database seeding
+# can delay worker boot, so demo data should be uploaded through the
+# normal CSV upload flow instead.
 
 
 # ============================================================
